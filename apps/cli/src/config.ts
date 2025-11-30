@@ -29,10 +29,9 @@ export function saveGlobalConfig(config: Config): void {
 }
 
 export function getApiKey(): string | undefined {
-    // Priority: Environment Variable -> Global Config
-    if (process.env.GEMINI_API_KEY) {
-        return process.env.GEMINI_API_KEY;
-    }
-    const config = getGlobalConfig();
-    return config.GEMINI_API_KEY;
+  if (process.env.GEMINI_API_KEY) {
+    return process.env.GEMINI_API_KEY;
+  }
+  const config = getGlobalConfig();
+  return config.GEMINI_API_KEY;
 }
