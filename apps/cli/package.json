@@ -1,0 +1,43 @@
+{
+  "name": "git-ai-pilot",
+  "version": "1.0.9",
+  "description": "Automated Git workflow with Gemini-generated commit messages",
+  "main": "dist/index.js",
+  "bin": {
+    "git-auto": "./bin/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch",
+    "postinstall": "node scripts/postinstall.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "git",
+    "automation",
+    "gemini",
+    "ai",
+    "cli"
+  ],
+  "author": {
+    "name": "MIRZA SAIKAT AHMMED",
+    "email": "contact@saikat.com.bd",
+    "url": "https://github.com/mirzasaikatahmmed"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.2",
+    "dotenv": "^17.2.3",
+    "ora": "^9.0.0",
+    "simple-git": "^3.30.0",
+    "inquirer": "^9.2.12"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3",
+    "@types/inquirer": "^9.0.7"
+  }
+}
