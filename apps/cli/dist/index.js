@@ -38,7 +38,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runGitWorkflow = runGitWorkflow;
 const simple_git_1 = require("simple-git");
-const gemini_1 = require("./gemini");
+const ai_service_1 = require("./ai-service");
 const dotenv = __importStar(require("dotenv"));
 const chalk_1 = __importDefault(require("chalk"));
 const ora_1 = __importDefault(require("ora"));
@@ -70,7 +70,7 @@ async function runGitWorkflow() {
         const diff = await git.diff();
         // If diff is too large, we might want to truncate it or just send file names
         const context = diff.length > 0 ? diff : JSON.stringify(status.files);
-        const commitMessage = await (0, gemini_1.generateCommitMessage)(context);
+        const commitMessage = await (0, ai_service_1.generateCommitMessage)(context);
         spinner.succeed(`Generated commit message: ${commitMessage}`);
         // 4. Git Commit
         spinner.start('Committing...');

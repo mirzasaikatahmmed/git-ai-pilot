@@ -1,19 +1,20 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import * as dotenv from 'dotenv';
-import { getApiKey } from './config';
+import { getOpenAiApiKey } from './config';
 
 dotenv.config();
 
-export async function generateCommitMessage(diff: string): Promise<string> {
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not configured. Please run the installation again or set it in your environment.');
-  }
+export async function generateCommitMessageOpenAI(diff: string): Promise<string> {
+    const apiKey = getOpenAiApiKey();
+    if (!apiKey) {
+        throw new Error('OPENAI_API_KEY is not configured.');
+    }
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const openai = new OpenAI({
+        apiKey: apiKey,
+    });
 
-  const prompt = `
+    const prompt = `
     You are an expert developer. Generate a concise and descriptive git commit message based on the following code changes (diff or file status).
     
     Requirements:
@@ -26,8 +27,14 @@ export async function generateCommitMessage(diff: string): Promise<string> {
     ${diff.substring(0, 5000)} // Truncate to avoid token limits if necessary
   `;
 
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  const text = response.text();
-  return text.trim();
+    const completion = await openai.chat.completions.create({
+        messages: [{ role: 'user', content: prompt }],
+        model: 'gpt-4o-mini',
+    });
+
+    const content = completion.choices[0].message.content;
+    if (!content) {
+        throw new Error('OpenAI returned empty response');
+    }
+    return content.trim();
 }

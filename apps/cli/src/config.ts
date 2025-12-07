@@ -7,6 +7,7 @@ const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 
 interface Config {
   GEMINI_API_KEY?: string;
+  OPENAI_API_KEY?: string;
 }
 
 export function getGlobalConfig(): Config {
@@ -35,3 +36,12 @@ export function getApiKey(): string | undefined {
   const config = getGlobalConfig();
   return config.GEMINI_API_KEY;
 }
+
+export function getOpenAiApiKey(): string | undefined {
+  if (process.env.OPENAI_API_KEY) {
+    return process.env.OPENAI_API_KEY;
+  }
+  const config = getGlobalConfig();
+  return config.OPENAI_API_KEY;
+}
+

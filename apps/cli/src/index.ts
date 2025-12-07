@@ -1,5 +1,5 @@
 import { simpleGit } from 'simple-git';
-import { generateCommitMessage } from './gemini';
+import { generateCommitMessage } from './ai-service';
 import * as dotenv from 'dotenv';
 import chalk from 'chalk';
 import ora from 'ora';
