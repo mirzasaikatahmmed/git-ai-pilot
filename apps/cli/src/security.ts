@@ -83,6 +83,10 @@ const SKIP_FILE_PATTERNS = [
   /package-lock\.json$/,
   /yarn\.lock$/,
   /pnpm-lock\.yaml$/,
+  /\.md$/,
+  /\.mdx$/,
+  /\.txt$/,
+  /\.rst$/,
 ];
 
 const SKIP_LINE_PATTERN = /example|placeholder|your[_-]?(?:key|secret|token)|<[^>]+>|\*{4,}|dummy|fake/i;

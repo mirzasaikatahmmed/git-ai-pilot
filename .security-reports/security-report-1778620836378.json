@@ -1,0 +1,36 @@
+{
+  "timestamp": "2026-05-12T21:20:36.377Z",
+  "passed": false,
+  "secrets": [
+    {
+      "file": "README.md",
+      "line": 190,
+      "type": "ENV Secret Variable",
+      "severity": "high",
+      "content": "→ OPENAI_API_KEY=sk-abc123..."
+    },
+    {
+      "file": "README.md",
+      "line": 267,
+      "type": "Database URL",
+      "severity": "critical",
+      "content": "- Database URL credential detection (`postgres://user:pass@host`)"
+    },
+    {
+      "file": "apps/cli/README.md",
+      "line": 165,
+      "type": "ENV Secret Variable",
+      "severity": "high",
+      "content": "→ OPENAI_API_KEY=sk-abc123..."
+    }
+  ],
+  "vulnerabilities": {
+    "total": 0,
+    "critical": 0,
+    "high": 0,
+    "moderate": 0,
+    "low": 0,
+    "info": 0,
+    "packages": []
+  }
+}

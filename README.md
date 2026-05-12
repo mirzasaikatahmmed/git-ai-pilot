@@ -24,13 +24,14 @@ Run `git-auto` in any project folder. The tool will:
 
 | Step | Action |
 |------|--------|
-| 📥 | Pull latest changes from remote |
-| 📂 | Stage all modified files |
+| ❓ | **Ask** whether to pull — press `y` / `Enter` for yes, `n` to skip |
+| 📥 | Pull latest changes from remote (if confirmed) |
+| 🔒 | **Security scan** — checks working directory for secrets **before staging** |
+| 🚫 | **Abort** if secrets or sensitive files are detected — saves a report |
+| 📂 | Stage all modified files (only if scan passes) |
 | 🧠 | Generate a commit message with **Gemini AI** (falls back to **OpenAI**) |
 | 💾 | Commit the changes |
-| 🔒 | Scan the diff for **leaked secrets** and **npm vulnerabilities** |
-| 🚫 | **Block the push** if secrets are detected — and save a report |
-| ☁️ | Push to GitHub / GitLab if everything is clean |
+| ☁️ | Push to GitHub / GitLab |
 
 ---
 
@@ -77,7 +78,7 @@ npm update -g git-ai-pilot
 To install a specific version:
 
 ```bash
-npm install -g git-ai-pilot@1.1.1
+npm install -g git-ai-pilot@1.1.2
 ```
 
 > Your API keys in `~/.git-ai-pilot/config.json` are preserved across updates.
@@ -121,8 +122,8 @@ On first run, the setup wizard will ask for your API key(s).
 
 ## 🔑 API Keys
 
-| Provider | Where to get it | Required |
-|----------|----------------|----------|
+| Provider | Where to get it | Role |
+|----------|----------------|------|
 | Google Gemini | [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) | Primary |
 | OpenAI | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) | Fallback |
 
@@ -132,34 +133,72 @@ Keys are stored locally in `~/.git-ai-pilot/config.json` — never in your proje
 
 ## 🔒 Security Scan
 
-Every push is guarded by an automatic two-layer scan:
+The scan runs **before `git add`** so secrets are caught before they ever enter git history.
+
+### Interactive pull prompt
+
+```
+Pull latest changes from remote? (y/n):
+```
+
+Press `y` or `Enter` to pull. Press `n` to skip.
 
 ### Secret Detection
-Scans every added line in the diff against 10 patterns:
 
-- AWS Access Key / Secret Key
-- Google API Key
-- OpenAI API Key
-- GitHub Token
-- Stripe Secret Key
-- Slack Token
-- JWT Token
-- RSA / SSH Private Keys
-- Hardcoded passwords & API tokens
+Detects secrets in two ways:
 
-If a secret is found the **push is blocked** and a JSON report is saved to `.security-reports/`.
+**1. Sensitive files by name** — flagged as `CRITICAL` the moment they appear in the diff:
+
+| File | Label |
+|------|-------|
+| `.env`, `.env.local`, `.env.production`, `.env.staging` … | `.env file / variant` |
+| `id_rsa`, `id_ed25519`, `id_ecdsa`, `id_dsa` | SSH private key |
+| `*.pem` | PEM certificate/key |
+| `credentials.json/yml`, `secrets.json/yml` | credentials / secrets file |
+| `serviceAccountKey.json` | service account key |
+| `*.keystore`, `*.jks`, `*.p12`, `*.pfx` | certificate keystore |
+| `.netrc`, `.pgpass`, `.npmrc` | auth config file |
+
+**2. Inline patterns** — scanned on every added line:
+
+| Pattern | Severity |
+|---------|----------|
+| AWS Access / Secret Key | CRITICAL |
+| Google API Key | CRITICAL |
+| OpenAI API Key | CRITICAL |
+| GitHub Token | CRITICAL |
+| Stripe Secret Key | CRITICAL |
+| Private Key header | CRITICAL |
+| Database URL with credentials | CRITICAL |
+| ENV secret variables (unquoted) | HIGH |
+| Slack Token, JWT Token | HIGH |
+| Connection string passwords | HIGH |
+| Hardcoded secrets in code | MEDIUM |
+
+### Example output
 
 ```
 ━━━ Security Scan Report ━━━
-  ✖  1 secret(s) found in diff:
-     [OpenAI API Key] src/config.ts:12
-       → apiKey: "sk-abc123..."
+  ✖  2 secret(s) found:
+     Critical : 1
+     High     : 1
+
+     [CRITICAL] Sensitive file committed (.env file)
+       .env
+     [HIGH] ENV Secret Variable
+       src/config.ts:8
+       → OPENAI_API_KEY=sk-abc123...
 
   Result: BLOCKED — secrets detected
+
+❌ Aborted: secrets detected in working directory.
+   Report saved to: .security-reports/security-report-1234567890.json
+   Remove the secrets before running git-auto again.
 ```
 
 ### Vulnerability Audit
-Runs `npm audit` on your project and reports severity counts before every push:
+
+Runs `npm audit` and reports severity counts alongside every scan:
 
 ```
 ━━━ Security Scan Report ━━━
@@ -181,15 +220,18 @@ git-ai-pilot/
 ├── apps/
 │   └── cli/               # The npm package (git-ai-pilot)
 │       ├── src/
-│       │   ├── index.ts   # Git workflow orchestration
+│       │   ├── index.ts       # Git workflow orchestration
 │       │   ├── ai-service.ts  # Gemini → OpenAI fallback
-│       │   ├── gemini.ts  # Gemini integration
-│       │   ├── openai.ts  # OpenAI integration
+│       │   ├── gemini.ts      # Gemini integration
+│       │   ├── openai.ts      # OpenAI integration
 │       │   ├── security.ts    # Secret scanner & vulnerability audit
-│       │   └── config.ts  # Global API key management
+│       │   └── config.ts      # Global API key management
 │       ├── bin/
-│       │   └── cli.js     # CLI entry point
+│       │   └── cli.js         # CLI entry point
 │       └── package.json
+├── .github/
+│   ├── CODEOWNERS
+│   └── workflows/
 ├── package.json           # Monorepo root (Turborepo)
 └── turbo.json
 ```
@@ -217,12 +259,22 @@ cd apps/cli && npm run dev
 
 ## 📋 Changelog
 
+### v1.1.2
+- Interactive pull prompt — press `y` / `Enter` to pull, `n` to skip
+- Security scan moved **before `git add`** — secrets never enter git history
+- Sensitive file detection by filename (`.env`, SSH keys, PEM, keystores …)
+- Unquoted ENV variable patterns (`API_KEY=value` without quotes)
+- Database URL credential detection (`postgres://user:pass@host`)
+- Severity levels: `CRITICAL` / `HIGH` / `MEDIUM` on every finding
+
 ### v1.1.1
 - Fixed bin script name in package.json
+- `--version` now reads dynamically from package.json
+- Suppressed dotenv verbose output
 
 ### v1.1.0
-- Added pre-push **secret scanner** — blocks push on detected secrets
-- Added **npm vulnerability audit** with severity breakdown
+- Added pre-push secret scanner — blocks push on detected secrets
+- Added npm vulnerability audit with severity breakdown
 - Added `.security-reports/` JSON report generation
 - AI fallback: Gemini → OpenAI when primary fails
 

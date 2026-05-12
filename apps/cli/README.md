@@ -2,16 +2,18 @@
 
 **Your Personal AI Assistant for Git!**
 
-Tired of writing commit messages? Let AI do it for you! `git-ai-pilot` automatically looks at your code changes and writes a professional, descriptive commit message using Google Gemini AI. It then handles the boring stuff (add, commit, push) — and now guards every push with a built-in security scan.
+Tired of writing commit messages? Let AI do it for you! `git-ai-pilot` automatically looks at your code changes and writes a professional, descriptive commit message using Google Gemini AI — and guards every commit with a built-in security scan before anything is staged.
 
 ## ✨ Features
 
-*   **One-Click Magic**: Just type `git-auto` and watch it work.
-*   **Smart Messages**: Uses advanced AI to understand *what* you changed and *why*.
-*   **AI Fallback**: Automatically falls back to OpenAI if Gemini is unavailable.
-*   **Secret Scanner**: Scans every commit diff for leaked API keys, tokens, and passwords before pushing — and **blocks the push** if anything is found.
-*   **Vulnerability Audit**: Runs `npm audit` on your project and reports dependency vulnerabilities with severity breakdown.
-*   **Security Reports**: Saves a timestamped JSON report to `.security-reports/` whenever issues are detected.
+*   **Interactive Pull**: Asks whether to pull before starting — press `y` / `Enter` for yes, `n` to skip.
+*   **Early Secret Scan**: Scans your working directory **before `git add`** so secrets never enter git history.
+*   **Sensitive File Detection**: Blocks `.env`, SSH keys, PEM files, credential files, and more by filename.
+*   **Inline Secret Patterns**: Detects AWS keys, Google/OpenAI/Stripe/GitHub/Slack tokens, JWTs, database URLs, and hardcoded passwords with severity levels.
+*   **Vulnerability Audit**: Runs `npm audit` and reports dependency vulnerabilities (critical / high / moderate / low).
+*   **Security Reports**: Saves a timestamped JSON report to `.security-reports/` when issues are found.
+*   **Smart Commit Messages**: Uses Gemini AI to understand *what* you changed and *why*.
+*   **AI Fallback**: Automatically switches to OpenAI if Gemini is unavailable.
 *   **Global Access**: Works in ANY project folder on your computer.
 
 ---
@@ -21,7 +23,7 @@ Tired of writing commit messages? Let AI do it for you! `git-ai-pilot` automatic
 You only need to do this once!
 
 ### Prerequisites
-*   **Node.js** installed on your computer. [Download it here](https://nodejs.org/).
+*   **Node.js** v18 or higher. [Download it here](https://nodejs.org/).
 
 ### Installation Command
 Open your terminal and run:
@@ -30,7 +32,47 @@ Open your terminal and run:
 npm install -g git-ai-pilot
 ```
 
+Verify:
+
+```bash
+git-auto --version
+```
+
 *Note: The `-g` flag installs the tool globally so you can use it everywhere.*
+
+---
+
+## 🔄 Update
+
+```bash
+npm update -g git-ai-pilot
+```
+
+To install a specific version:
+
+```bash
+npm install -g git-ai-pilot@1.1.2
+```
+
+> Your API keys in `~/.git-ai-pilot/config.json` are preserved across updates.
+
+---
+
+## 🗑️ Uninstall
+
+```bash
+npm uninstall -g git-ai-pilot
+```
+
+To also remove stored API keys:
+
+```bash
+# macOS / Linux
+rm -rf ~/.git-ai-pilot
+
+# Windows (PowerShell)
+Remove-Item -Recurse -Force "$env:USERPROFILE\.git-ai-pilot"
+```
 
 ---
 
@@ -59,44 +101,79 @@ After installation, the tool will ask for your API keys.
 git-auto
 ```
 
-3.  **That's it!** The tool will:
-    *   📥 Pull the latest changes from the remote.
-    *   👀 Stage all your changes.
-    *   🧠 Generate an AI commit message.
-    *   💾 Commit the changes.
-    *   🔒 Run a **security scan** on the diff and your dependencies.
-    *   🚫 **Block the push** if secrets are found, and save a report.
-    *   ☁️ Push to GitHub/GitLab if everything is clean.
+3.  **The workflow:**
+
+```
+Pull latest changes from remote? (y/n):
+```
+
+Press `y` or `Enter` to pull, `n` to skip. Then:
+
+*   🔒 **Security scan** runs on your working directory — before anything is staged.
+*   🚫 **Aborts** if secrets or sensitive files are detected, saves a report.
+*   📂 Stages all your changes (only if scan passes).
+*   🧠 Generates an AI commit message.
+*   💾 Commits the changes.
+*   ☁️ Pushes to GitHub/GitLab.
 
 ---
 
 ## 🔒 Security Scan
 
-Before every push, `git-auto` automatically:
+The scan runs **before `git add`** — so if a secret is found, nothing is staged or committed.
 
-| Check | What it detects |
-|-------|----------------|
-| **Secret scan** | AWS keys, Google/OpenAI/Stripe/GitHub/Slack tokens, JWTs, private keys, hardcoded passwords |
-| **Vulnerability audit** | npm dependency vulnerabilities (critical / high / moderate / low) |
+### Sensitive files — blocked by filename (`CRITICAL`)
+
+| File | Reason |
+|------|--------|
+| `.env`, `.env.local`, `.env.production` … | Environment secrets |
+| `id_rsa`, `id_ed25519`, `id_ecdsa` | SSH private keys |
+| `*.pem` | TLS/SSL certificates |
+| `credentials.json/yml`, `secrets.json/yml` | Cloud credentials |
+| `serviceAccountKey.json` | GCP service account |
+| `*.keystore`, `*.jks`, `*.p12`, `*.pfx` | Java/PKCS keystores |
+| `.netrc`, `.pgpass`, `.npmrc` | Auth config files |
+
+### Inline patterns — scanned on every added line
+
+| Pattern | Severity |
+|---------|----------|
+| AWS Access / Secret Key | CRITICAL |
+| Google API Key | CRITICAL |
+| OpenAI API Key | CRITICAL |
+| GitHub Token | CRITICAL |
+| Stripe Secret Key | CRITICAL |
+| Private Key header | CRITICAL |
+| Database URL with credentials | CRITICAL |
+| ENV secret variables (unquoted `KEY=value`) | HIGH |
+| Slack Token, JWT Token | HIGH |
+| Connection string passwords | HIGH |
+| Hardcoded secrets in code | MEDIUM |
 
 ### If secrets are found
-The push is **blocked**. You'll see exactly which file and line contains the secret:
 
 ```
 ━━━ Security Scan Report ━━━
-  ✖  1 secret(s) found in diff:
-     [OpenAI API Key] src/config.ts:12
-       → apiKey: "sk-abc123..."
+  ✖  2 secret(s) found:
+     Critical : 1
+     High     : 1
+
+     [CRITICAL] Sensitive file committed (.env file)
+       .env
+     [HIGH] ENV Secret Variable
+       src/config.ts:8
+       → OPENAI_API_KEY=sk-abc123...
 
   Result: BLOCKED — secrets detected
 
-❌ Push blocked: secrets detected in diff.
+❌ Aborted: secrets detected in working directory.
    Report saved to: .security-reports/security-report-1234567890.json
-   Remove the secrets and recommit before pushing.
+   Remove the secrets before running git-auto again.
 ```
 
 ### If vulnerabilities are found
-The push **proceeds** but a report is saved to `.security-reports/` so you can review and fix them:
+
+The workflow continues but a report is saved:
 
 ```
 ━━━ Security Scan Report ━━━
@@ -107,12 +184,7 @@ The push **proceeds** but a report is saved to `.security-reports/` so you can r
      • lodash [high] — fix available
 ```
 
-### Report format
-Reports are saved as `.security-reports/security-report-<timestamp>.json` and contain:
-- Full list of secret findings (file, line, type, content snippet)
-- Full vulnerability list with severity and fix availability
-
-> **Tip:** Add `.security-reports/` to your `.gitignore` so reports aren't committed.
+> **Tip:** Add `.security-reports/` to your `.gitignore`.
 
 ---
 
@@ -122,7 +194,7 @@ Reports are saved as `.security-reports/security-report-<timestamp>.json` and co
 A: No! Global install (`-g`) means it works everywhere.
 
 **Q: Where are my API keys stored?**
-A: Saved locally in `~/.git-ai-pilot/config.json` on your machine.
+A: Saved locally in `~/.git-ai-pilot/config.json` — never inside your project.
 
 **Q: Can I change my API keys later?**
 A: Yes — edit `~/.git-ai-pilot/config.json` directly or reinstall.
@@ -130,21 +202,36 @@ A: Yes — edit `~/.git-ai-pilot/config.json` directly or reinstall.
 **Q: What if both Gemini and OpenAI fail?**
 A: You'll see a clear error message with details from both providers.
 
-**Q: Can I disable the security scan?**
-A: The scan runs automatically for every push. To skip it temporarily, use plain `git push` instead.
+**Q: What if I accidentally committed a secret before?**
+A: Use `git filter-repo` or BFG Repo Cleaner to purge it from history, then rotate the exposed key immediately.
+
+**Q: Can I skip the pull prompt?**
+A: Just press `n` when asked. The rest of the workflow continues normally.
 
 ---
 
 ## 📋 Changelog
 
+### v1.1.2
+- Interactive pull prompt — `y` / `Enter` = yes, `n` = skip
+- Security scan moved **before `git add`** — secrets never enter git history
+- Sensitive file detection by filename (`.env`, SSH keys, PEM, keystores …)
+- Unquoted ENV variable patterns (`API_KEY=value`)
+- Database URL credential detection
+- Severity levels: `CRITICAL` / `HIGH` / `MEDIUM`
+
+### v1.1.1
+- Fixed bin script name in package.json
+- `--version` reads dynamically from package.json
+- Suppressed dotenv verbose output
+
 ### v1.1.0
-- Added pre-push secret scanner (blocks push if secrets detected)
-- Added npm vulnerability audit with severity report
+- Added secret scanner and npm vulnerability audit
 - Added `.security-reports/` JSON report generation
-- AI fallback: Gemini → OpenAI if primary fails
+- AI fallback: Gemini → OpenAI
 
 ### v1.0.13
-- Initial stable release with Gemini-powered commit messages
+- Initial stable release
 
 ---
 
