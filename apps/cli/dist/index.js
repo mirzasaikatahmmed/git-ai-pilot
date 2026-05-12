@@ -47,10 +47,35 @@ const readline = __importStar(require("readline"));
 const security_1 = require("./security");
 dotenv.config({ quiet: true });
 const git = (0, simple_git_1.simpleGit)();
+const W = 50;
+const div = chalk_1.default.gray('  ' + '─'.repeat(W));
+function printHeader() {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { version } = require('../package.json');
+    const title = ` ✈️   Git AI Pilot   v${version} `;
+    const padL = Math.floor((W - title.length) / 2);
+    const padR = W - padL - title.length;
+    console.log('\n' + chalk_1.default.cyan('  ╔' + '═'.repeat(W) + '╗'));
+    console.log(chalk_1.default.cyan('  ║') + ' '.repeat(padL) + chalk_1.default.bold.white(title) + ' '.repeat(padR) + chalk_1.default.cyan('║'));
+    console.log(chalk_1.default.cyan('  ╚' + '═'.repeat(W) + '╝'));
+}
+function printSuccess() {
+    const msg = ' ✅  Workflow completed successfully! ';
+    const padL = Math.floor((W - msg.length) / 2);
+    const padR = W - padL - msg.length;
+    console.log('\n' + div);
+    console.log('\n' + chalk_1.default.green('  ╔' + '═'.repeat(W) + '╗'));
+    console.log(chalk_1.default.green('  ║') + ' '.repeat(padL) + chalk_1.default.bold.greenBright(msg) + ' '.repeat(padR) + chalk_1.default.green('║'));
+    console.log(chalk_1.default.green('  ╚' + '═'.repeat(W) + '╝') + '\n');
+}
+function stepTag(n, total) {
+    return chalk_1.default.cyan.bold(`[${n}/${total}]`);
+}
 function askYesNo(question) {
     return new Promise((resolve) => {
         const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-        process.stdout.write(`${question} (y/n): `);
+        process.stdout.write('\n' + chalk_1.default.cyan('  ?') + '  ' + chalk_1.default.white(question) + ' ' +
+            chalk_1.default.gray('(y/n)') + chalk_1.default.cyan(' › '));
         process.stdin.setRawMode(true);
         process.stdin.resume();
         process.stdin.once('data', (key) => {
@@ -59,80 +84,91 @@ function askYesNo(question) {
             rl.close();
             const isYes = char === 'y' || char === '\r' || char === '\n';
             if (isYes) {
-                process.stdout.write(chalk_1.default.green('y\n'));
+                process.stdout.write(chalk_1.default.greenBright('yes\n'));
                 resolve(true);
             }
             else {
-                process.stdout.write(chalk_1.default.red('n\n'));
+                process.stdout.write(chalk_1.default.red('no\n'));
                 resolve(false);
             }
         });
     });
 }
 async function runGitWorkflow() {
-    console.log(chalk_1.default.blue('🚀 Starting Git Automation Workflow...'));
+    printHeader();
     try {
-        // 1. Git Pull — user decides with a single keypress
+        const TOTAL = 5;
+        // Step 1 — Pull (user decides)
         const shouldPull = await askYesNo('Pull latest changes from remote?');
-        const spinner = (0, ora_1.default)();
+        console.log('');
+        const spinner = (0, ora_1.default)({ spinner: 'dots2', color: 'cyan' });
         if (shouldPull) {
-            spinner.start('Pulling latest changes...');
+            spinner.prefixText = '  ' + stepTag(1, TOTAL);
+            spinner.start(chalk_1.default.white(' Pulling latest changes...'));
             try {
                 await git.pull();
-                spinner.succeed('Pulled latest changes');
+                spinner.succeed(chalk_1.default.white(' Pulled latest changes'));
             }
-            catch (err) {
-                spinner.warn('Pull failed (might be no remote or conflicts), continuing...');
+            catch {
+                spinner.warn(chalk_1.default.yellow(' Pull failed, continuing...'));
             }
         }
         else {
-            console.log(chalk_1.default.gray('  Skipped pull.'));
+            console.log(chalk_1.default.gray(`  ${stepTag(1, TOTAL)}  Skipped pull`));
         }
-        // 2. Security Scan — before staging so secrets never enter git history
-        spinner.start('Running security scan...');
+        // Step 2 — Security scan
+        console.log('');
+        spinner.prefixText = '  ' + stepTag(2, TOTAL);
+        spinner.start(chalk_1.default.white(' Running security scan...'));
         const projectPath = process.cwd();
         const report = await (0, security_1.runSecurityChecks)(git, projectPath);
         spinner.stop();
+        spinner.prefixText = '';
         (0, security_1.printSecurityReport)(report);
         if (!report.passed) {
             const reportsDir = path.join(projectPath, '.security-reports');
             const reportFile = (0, security_1.saveSecurityReport)(report, reportsDir);
-            console.log(chalk_1.default.red('❌ Aborted: secrets detected in working directory.'));
-            console.log(chalk_1.default.yellow(`   Report saved to: ${reportFile}`));
-            console.log(chalk_1.default.yellow('   Remove the secrets before running git-auto again.'));
+            console.log(chalk_1.default.red('  ✖  Aborted: secrets detected in working directory.'));
+            console.log(chalk_1.default.gray(`  ↳  Report saved → ${reportFile}`));
+            console.log(chalk_1.default.yellow('  ↳  Remove the secrets and try again.\n'));
             process.exit(1);
         }
         if (report.vulnerabilities.total > 0) {
-            const reportsDir = path.join(projectPath, '.security-reports');
-            (0, security_1.saveSecurityReport)(report, reportsDir);
+            const reportFile = (0, security_1.saveSecurityReport)(report, path.join(projectPath, '.security-reports'));
+            console.log(chalk_1.default.gray(`  ↳  Vulnerability report saved → ${reportFile}`));
         }
-        // 3. Git Add
-        spinner.start('Adding files...');
+        // Step 3 — Stage files
+        console.log('');
+        spinner.prefixText = '  ' + stepTag(3, TOTAL);
+        spinner.start(chalk_1.default.white(' Staging all files...'));
         await git.add('.');
-        spinner.succeed('Added all files');
-        // 4. Generate Commit Message
-        spinner.start('Generating commit message with Gemini...');
+        spinner.succeed(chalk_1.default.white(' All files staged'));
+        // Step 4 — AI commit message
+        console.log('');
+        spinner.prefixText = '  ' + stepTag(4, TOTAL);
+        spinner.start(chalk_1.default.white(' Generating AI commit message...'));
         const status = await git.status();
         if (status.files.length === 0) {
-            spinner.info('No changes to commit.');
+            spinner.info(chalk_1.default.white(' No changes to commit.'));
             return;
         }
         const diff = await git.diff(['--cached']);
         const context = diff.length > 0 ? diff : JSON.stringify(status.files);
         const commitMessage = await (0, ai_service_1.generateCommitMessage)(context);
-        spinner.succeed(`Generated commit message: ${commitMessage}`);
-        // 5. Git Commit
-        spinner.start('Committing...');
+        spinner.succeed(chalk_1.default.white(' Commit message ready'));
+        console.log(chalk_1.default.gray(`     ↳  "${commitMessage}"`));
+        // Step 5 — Commit & Push
+        console.log('');
+        spinner.prefixText = '  ' + stepTag(5, TOTAL);
+        spinner.start(chalk_1.default.white(' Committing & pushing to remote...'));
         await git.commit(commitMessage);
-        spinner.succeed('Committed changes');
-        // 6. Git Push
-        spinner.start('Pushing to remote...');
         await git.push();
-        spinner.succeed('Pushed to remote');
-        console.log(chalk_1.default.green('✅ Workflow completed successfully!'));
+        spinner.succeed(chalk_1.default.white(' Committed and pushed to remote'));
+        printSuccess();
     }
     catch (error) {
-        console.error(chalk_1.default.red('❌ Error occurred:'), error.message);
+        console.log('\n' + div);
+        console.log(chalk_1.default.red(`\n  ✖  Error: ${error.message}\n`));
         process.exit(1);
     }
 }

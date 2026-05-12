@@ -14,16 +14,31 @@ export async function generateCommitMessage(diff: string): Promise<string> {
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
   const prompt = `
-    You are an expert developer. Generate a concise and descriptive git commit message based on the following code changes (diff or file status).
-    
-    Requirements:
-    1.  Start with a suitable emoji (e.g., ✨ for features, 🐛 for fixes, 📝 for docs, 🚀 for deployment, etc.).
-    2.  Use the Conventional Commits format if possible (e.g., "feat: ...", "fix: ...").
-    3.  Keep it under 72 characters if possible, or keep the first line short and add a body if necessary.
-    4.  ONLY return the commit message string, nothing else.
+You are an expert developer. Generate a concise git commit message for the following code changes.
 
-    Changes:
-    ${diff.substring(0, 5000)} // Truncate to avoid token limits if necessary
+Format: <emoji> <type>: <short description>
+
+Emoji guide — pick the ONE best match:
+✨  feat       — new feature
+🐛  fix        — bug fix
+🔒  security   — security fix or secret/vulnerability patch
+📝  docs       — documentation only
+🎨  style      — formatting, UI, no logic change
+♻️  refactor   — code restructure, no feature/fix
+⚡  perf       — performance improvement
+✅  test       — adding or fixing tests
+🔧  chore      — config, tooling, maintenance
+📦  build      — build system or dependency update
+🗑️  remove     — deleting files or dead code
+🚀  deploy     — deployment or release related
+
+Rules:
+- Output ONLY the commit message, nothing else — no backticks, no quotes, no explanation.
+- First line must be under 72 characters.
+- Use present tense ("add" not "added").
+
+Changes:
+${diff.substring(0, 5000)}
   `;
 
   const result = await model.generateContent(prompt);

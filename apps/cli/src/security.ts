@@ -205,55 +205,78 @@ function severityColor(severity: SecretFinding['severity']): (s: string) => stri
   return chalk.magenta;
 }
 
-export function printSecurityReport(report: SecurityReport): void {
-  console.log('\n' + chalk.bold('━━━ Security Scan Report ━━━'));
-  console.log(chalk.gray(`  Time: ${report.timestamp}`));
+function severityBadge(severity: SecretFinding['severity']): string {
+  if (severity === 'critical') return chalk.red.bold(`[${severity.toUpperCase()}]`);
+  if (severity === 'high')     return chalk.yellow.bold(`[${severity.toUpperCase()}]`);
+  return chalk.magenta.bold(`[${severity.toUpperCase()}]`);
+}
 
+const L = '  │ ';  // left border prefix
+
+export function printSecurityReport(report: SecurityReport): void {
+  const border  = '─'.repeat(48);
+  const top     = '  ╭' + border + '╮';
+  const bottom  = '  ╰' + border + '╯';
+  const divider = '  ├' + border + '┤';
+
+  console.log('\n' + top);
+  console.log(L + chalk.bold.cyan('🔒  Security Scan Report'));
+  console.log(L + chalk.gray(report.timestamp));
+  console.log(divider);
+
+  // Secrets section
   if (report.secrets.length === 0) {
-    console.log(chalk.green('  ✔  No secrets detected'));
+    console.log(L + chalk.green('✔  No secrets detected'));
   } else {
     const critCount = report.secrets.filter(s => s.severity === 'critical').length;
     const highCount  = report.secrets.filter(s => s.severity === 'high').length;
     const medCount   = report.secrets.filter(s => s.severity === 'medium').length;
 
-    console.log(chalk.red(`  ✖  ${report.secrets.length} secret(s) found:`));
-    if (critCount) console.log(chalk.red(`     Critical : ${critCount}`));
-    if (highCount) console.log(chalk.yellow(`     High     : ${highCount}`));
-    if (medCount)  console.log(chalk.magenta(`     Medium   : ${medCount}`));
-    console.log('');
+    console.log(L + chalk.red.bold(`✖  ${report.secrets.length} secret(s) found`));
+    if (critCount) console.log(L + chalk.red(`   Critical : ${critCount}`));
+    if (highCount) console.log(L + chalk.yellow(`   High     : ${highCount}`));
+    if (medCount)  console.log(L + chalk.magenta(`   Medium   : ${medCount}`));
 
     for (const s of report.secrets) {
-      const color = severityColor(s.severity);
+      console.log(L);
+      console.log(L + `${severityBadge(s.severity)}  ${s.type}`);
       const location = s.line > 0 ? `${s.file}:${s.line}` : s.file;
-      console.log(color(`     [${s.severity.toUpperCase()}] ${s.type}`));
-      console.log(chalk.gray(`       ${location}`));
-      if (s.line > 0) console.log(chalk.gray(`       → ${s.content}`));
+      console.log(L + chalk.gray(`   ↳  ${location}`));
+      if (s.line > 0) {
+        console.log(L + chalk.gray(`   ↳  ${s.content}`));
+      }
     }
   }
 
+  // Vulnerabilities section
   const v = report.vulnerabilities;
-  console.log('');
+  console.log(divider);
+
   if (v.total === 0) {
-    console.log(chalk.green('  ✔  No npm vulnerabilities found'));
+    console.log(L + chalk.green('✔  No npm vulnerabilities found'));
   } else {
     const color = v.critical > 0 || v.high > 0 ? chalk.red : chalk.yellow;
-    console.log(color(`  ⚠  ${v.total} npm vulnerabilit${v.total === 1 ? 'y' : 'ies'}:`));
-    if (v.critical)  console.log(chalk.red(`     Critical : ${v.critical}`));
-    if (v.high)      console.log(chalk.red(`     High     : ${v.high}`));
-    if (v.moderate)  console.log(chalk.yellow(`     Moderate : ${v.moderate}`));
-    if (v.low)       console.log(chalk.gray(`     Low      : ${v.low}`));
-    const preview = v.packages.slice(0, 5);
-    for (const pkg of preview) {
-      console.log(chalk.gray(`     • ${pkg.name} [${pkg.severity}]${pkg.fixAvailable ? ' — fix available' : ''}`));
+    console.log(L + color.bold(`⚠  ${v.total} npm vulnerabilit${v.total === 1 ? 'y' : 'ies'}`));
+    if (v.critical)  console.log(L + chalk.red(`   Critical : ${v.critical}`));
+    if (v.high)      console.log(L + chalk.red(`   High     : ${v.high}`));
+    if (v.moderate)  console.log(L + chalk.yellow(`   Moderate : ${v.moderate}`));
+    if (v.low)       console.log(L + chalk.gray(`   Low      : ${v.low}`));
+    for (const pkg of v.packages.slice(0, 5)) {
+      console.log(L + chalk.gray(`   •  ${pkg.name} [${pkg.severity}]${pkg.fixAvailable ? ' — fix available' : ''}`));
     }
     if (v.packages.length > 5) {
-      console.log(chalk.gray(`     … and ${v.packages.length - 5} more (see report file)`));
+      console.log(L + chalk.gray(`   …  and ${v.packages.length - 5} more`));
     }
   }
 
-  const status = report.passed ? chalk.green('PASSED') : chalk.red('BLOCKED — secrets detected');
-  console.log(chalk.bold(`\n  Result: ${status}`));
-  console.log(chalk.bold('━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'));
+  // Result
+  console.log(divider);
+  if (report.passed) {
+    console.log(L + chalk.green.bold('✔  Result: PASSED'));
+  } else {
+    console.log(L + chalk.red.bold('✖  Result: BLOCKED — secrets detected'));
+  }
+  console.log(bottom + '\n');
 }
 
 export function saveSecurityReport(report: SecurityReport, reportsDir: string): string {
