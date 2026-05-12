@@ -45,6 +45,7 @@ const ora_1 = __importDefault(require("ora"));
 const path = __importStar(require("path"));
 const readline = __importStar(require("readline"));
 const security_1 = require("./security");
+const config_1 = require("./config");
 dotenv.config({ quiet: true });
 const git = (0, simple_git_1.simpleGit)();
 const W = 50;
@@ -71,6 +72,32 @@ function printSuccess() {
 function stepTag(n, total) {
     return chalk_1.default.cyan.bold(`[${n}/${total}]`);
 }
+async function ensureApiKeys() {
+    if ((0, config_1.getApiKey)() || (0, config_1.getOpenAiApiKey)())
+        return;
+    console.log(chalk_1.default.yellow('\n  ⚠  No API key configured yet.'));
+    console.log(chalk_1.default.gray('  ↳  Get a free Gemini key: https://aistudio.google.com/app/apikey'));
+    console.log(chalk_1.default.gray('  ↳  Press Enter to skip any key.\n'));
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    const ask = (q) => new Promise(resolve => {
+        process.stdout.write(chalk_1.default.cyan('  ›') + '  ' + chalk_1.default.white(q) + chalk_1.default.cyan(': '));
+        rl.once('line', ans => resolve(ans.trim()));
+    });
+    const geminiKey = await ask('Gemini API Key  (primary, free) ');
+    const openaiKey = await ask('OpenAI API Key  (fallback, optional)');
+    rl.close();
+    if (!geminiKey && !openaiKey) {
+        console.log(chalk_1.default.red('\n  ✖  At least one API key is required to continue.\n'));
+        process.exit(1);
+    }
+    const config = (0, config_1.getGlobalConfig)();
+    if (geminiKey)
+        config.GEMINI_API_KEY = geminiKey;
+    if (openaiKey)
+        config.OPENAI_API_KEY = openaiKey;
+    (0, config_1.saveGlobalConfig)(config);
+    console.log(chalk_1.default.green('\n  ✔  API key saved. Continuing...\n'));
+}
 function askYesNo(question) {
     return new Promise((resolve) => {
         const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -96,6 +123,7 @@ function askYesNo(question) {
 }
 async function runGitWorkflow() {
     printHeader();
+    await ensureApiKeys();
     try {
         const TOTAL = 5;
         // Step 1 — Pull (user decides)

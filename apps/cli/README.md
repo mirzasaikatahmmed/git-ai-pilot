@@ -212,6 +212,24 @@ A: Just press `n` when asked. The rest of the workflow continues normally.
 
 ## 📋 Changelog
 
+### v1.1.8 — Current
+- **Custom command alias** — `git-auto --custom-command` sets any alias (e.g. `gitsync`); alias triggers full workflow
+- **Reset alias** — `git-auto --reset-command` removes alias and restores `git-auto`
+- **Show active command** — `git-auto --show-command`
+- **Beautiful `--help` screen** — styled with workflow steps, security details, and live API key status
+- **First-run setup prompt** — if postinstall was skipped, `git-auto` asks for API keys on first run
+- **Fixed postinstall hang** — `npm install -g` no longer hangs in non-interactive environments
+- **Emoji commit messages** — improved AI prompt with full emoji guide (`✨ feat`, `🐛 fix`, `🔒 security` …)
+
+### v1.1.7
+- **Multi-language dependency audit** — auto-detects and audits:
+  - 🟢 Node.js · 🐍 Python · 🐘 PHP · 🐹 Go · 💎 Ruby · 🦀 Rust · 💙 Flutter · ☕ Java · 💜 .NET · 🍎 Swift
+- Shows install hint when audit tool is missing
+
+### v1.1.6
+- Full **terminal UI redesign** — header banner, `[1/5]` step counters, bordered security report, success banner
+- Fixed false positives — `.md`, `.txt`, `.rst` files excluded from secret scanning
+
 ### v1.1.2
 - Interactive pull prompt — `y` / `Enter` = yes, `n` = skip
 - Security scan moved **before `git add`** — secrets never enter git history

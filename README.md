@@ -259,6 +259,26 @@ cd apps/cli && npm run dev
 
 ## 📋 Changelog
 
+### v1.1.8 — Current
+- **Custom command alias** — `git-auto --custom-command` lets you set any name (e.g. `gitsync`); running that name triggers the full workflow
+- **Reset alias** — `git-auto --reset-command` removes the alias and restores `git-auto` as default
+- **Show active command** — `git-auto --show-command` prints the currently active command
+- **Beautiful `--help` screen** — styled help with full workflow, security scan details, and live API key status
+- **First-run API key prompt** — `git-auto` asks for keys on first use if postinstall was skipped
+- **Fixed postinstall in non-interactive environments** — `npm install -g` no longer hangs; setup runs on first `git-auto` call instead
+- **Emoji commit messages** — improved AI prompt with a full emoji guide (`✨ feat`, `🐛 fix`, `🔒 security` …)
+
+### v1.1.7
+- **Multi-language dependency audit** — auto-detects project type and runs the right audit tool
+  - 🟢 Node.js (`npm audit`) · 🐍 Python (`pip-audit`) · 🐘 PHP (`composer audit`)
+  - 🐹 Go (`govulncheck`) · 💎 Ruby (`bundle-audit`) · 🦀 Rust (`cargo audit`)
+  - 💙 Flutter/Dart · ☕ Java · 💜 .NET (`dotnet list`) · 🍎 Swift
+- Per-language results shown in the security report with install hints for missing tools
+
+### v1.1.6
+- Full **terminal UI redesign** — header banner, `[1/5]` step counters, bordered security report (`╭─╮`), success banner
+- Fixed false positives — `.md`, `.txt`, `.rst` files excluded from secret scanning
+
 ### v1.1.2
 - Interactive pull prompt — press `y` / `Enter` to pull, `n` to skip
 - Security scan moved **before `git add`** — secrets never enter git history

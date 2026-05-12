@@ -5,9 +5,10 @@ import os from 'os';
 const CONFIG_DIR = path.join(os.homedir(), '.git-ai-pilot');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 
-interface Config {
+export interface Config {
   GEMINI_API_KEY?: string;
   OPENAI_API_KEY?: string;
+  customCommand?: string;
 }
 
 export function getGlobalConfig(): Config {

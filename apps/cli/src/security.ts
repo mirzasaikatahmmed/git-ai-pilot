@@ -19,6 +19,20 @@ export interface AuditPackage {
   fixAvailable: boolean | string;
 }
 
+export interface LanguageAuditResult {
+  language: string;
+  icon: string;
+  detected: boolean;
+  toolAvailable: boolean;
+  total: number;
+  critical: number;
+  high: number;
+  moderate: number;
+  low: number;
+  packages: AuditPackage[];
+  installHint?: string;
+}
+
 export interface VulnerabilitySummary {
   total: number;
   critical: number;
@@ -27,6 +41,7 @@ export interface VulnerabilitySummary {
   low: number;
   info: number;
   packages: AuditPackage[];
+  languages: LanguageAuditResult[];
 }
 
 export interface SecurityReport {
@@ -157,46 +172,167 @@ export async function scanSecretsInDiff(diff: string): Promise<SecretFinding[]> 
   return findings;
 }
 
-export function runVulnerabilityAudit(projectPath: string): VulnerabilitySummary {
-  const empty: VulnerabilitySummary = { total: 0, critical: 0, high: 0, moderate: 0, low: 0, info: 0, packages: [] };
+// ─── Language detection helpers ───────────────────────────────────────────────
 
-  if (!fs.existsSync(path.join(projectPath, 'package.json'))) return empty;
+function hasFile(dir: string, ...files: string[]): boolean {
+  return files.some(f => fs.existsSync(path.join(dir, f)));
+}
 
-  let rawOutput = '';
+function hasFilePattern(dir: string, pattern: RegExp): boolean {
+  try { return fs.readdirSync(dir).some(f => pattern.test(f)); } catch { return false; }
+}
+
+function cmdExists(name: string): boolean {
+  try { execSync(`which ${name}`, { encoding: 'utf-8', timeout: 3000, stdio: 'pipe' }); return true; } catch { return false; }
+}
+
+function tryRun(cmd: string, cwd: string, timeout = 30000): string {
   try {
-    rawOutput = execSync('npm audit --json 2>/dev/null', {
-      cwd: projectPath,
-      encoding: 'utf-8',
-      timeout: 30000,
-    });
-  } catch (err: any) {
-    rawOutput = err.stdout || '';
-  }
+    return execSync(cmd + ' 2>/dev/null', { cwd, encoding: 'utf-8', timeout });
+  } catch (e: any) { return e.stdout || ''; }
+}
 
+function emptyLang(language: string, icon: string, installHint?: string): LanguageAuditResult {
+  return { language, icon, detected: true, toolAvailable: false, total: 0, critical: 0, high: 0, moderate: 0, low: 0, packages: [], installHint };
+}
+
+// ─── Per-language auditors ────────────────────────────────────────────────────
+
+function auditNode(dir: string): LanguageAuditResult {
+  const base = { language: 'Node.js', icon: '🟢', detected: true, toolAvailable: true };
+  const raw = tryRun('npm audit --json', dir);
   try {
-    const audit = JSON.parse(rawOutput);
-    const meta = audit.metadata?.vulnerabilities || {};
+    const audit = JSON.parse(raw);
+    const m = audit.metadata?.vulnerabilities || {};
     const packages: AuditPackage[] = Object.values(audit.vulnerabilities || {}).map((v: any) => ({
-      name: v.name,
-      severity: v.severity,
-      via: (Array.isArray(v.via) ? v.via : []).map((x: any) =>
-        typeof x === 'string' ? x : x.title || x.name || String(x)
-      ),
+      name: v.name, severity: v.severity,
+      via: (Array.isArray(v.via) ? v.via : []).map((x: any) => typeof x === 'string' ? x : x.title || x.name || ''),
       fixAvailable: v.fixAvailable ?? false,
     }));
+    return { ...base, total: m.total || 0, critical: m.critical || 0, high: m.high || 0, moderate: m.moderate || 0, low: m.low || 0, packages };
+  } catch { return { ...base, total: 0, critical: 0, high: 0, moderate: 0, low: 0, packages: [] }; }
+}
 
-    return {
-      total: meta.total || 0,
-      critical: meta.critical || 0,
-      high: meta.high || 0,
-      moderate: meta.moderate || 0,
-      low: meta.low || 0,
-      info: meta.info || 0,
-      packages,
-    };
-  } catch {
-    return empty;
+function auditPython(dir: string): LanguageAuditResult {
+  if (!cmdExists('pip-audit')) return emptyLang('Python', '🐍', 'pip install pip-audit');
+  const raw = tryRun('pip-audit --format json', dir);
+  try {
+    const results: any[] = JSON.parse(raw);
+    const packages: AuditPackage[] = [];
+    let total = 0;
+    for (const pkg of results) {
+      if (pkg.vulns?.length) {
+        total += pkg.vulns.length;
+        packages.push({ name: pkg.name, severity: 'high', via: pkg.vulns.map((v: any) => v.id), fixAvailable: pkg.vulns.some((v: any) => v.fix_versions?.length) });
+      }
+    }
+    return { language: 'Python', icon: '🐍', detected: true, toolAvailable: true, total, critical: 0, high: total, moderate: 0, low: 0, packages };
+  } catch { return { language: 'Python', icon: '🐍', detected: true, toolAvailable: true, total: 0, critical: 0, high: 0, moderate: 0, low: 0, packages: [] }; }
+}
+
+function auditPhp(dir: string): LanguageAuditResult {
+  if (!cmdExists('composer')) return emptyLang('PHP', '🐘', 'Install Composer: https://getcomposer.org');
+  const raw = tryRun('composer audit --format json', dir);
+  try {
+    const result = JSON.parse(raw);
+    const advisories: Record<string, any[]> = result.advisories || {};
+    const packages: AuditPackage[] = [];
+    let total = 0;
+    for (const [pkgName, advList] of Object.entries(advisories)) {
+      total += advList.length;
+      for (const adv of advList) packages.push({ name: pkgName, severity: adv.severity || 'high', via: [adv.title || ''], fixAvailable: false });
+    }
+    return { language: 'PHP', icon: '🐘', detected: true, toolAvailable: true, total, critical: 0, high: total, moderate: 0, low: 0, packages };
+  } catch { return { language: 'PHP', icon: '🐘', detected: true, toolAvailable: true, total: 0, critical: 0, high: 0, moderate: 0, low: 0, packages: [] }; }
+}
+
+function auditGo(dir: string): LanguageAuditResult {
+  if (!cmdExists('govulncheck')) return emptyLang('Go', '🐹', 'go install golang.org/x/vuln/cmd/govulncheck@latest');
+  const raw = tryRun('govulncheck -json ./...', dir, 60000);
+  const packages: AuditPackage[] = [];
+  let total = 0;
+  for (const line of raw.split('\n').filter(l => l.trim().startsWith('{'))) {
+    try {
+      const obj = JSON.parse(line);
+      if (obj.finding?.osv) { total++; packages.push({ name: obj.finding.osv, severity: 'high', via: [], fixAvailable: false }); }
+    } catch { /* skip */ }
   }
+  return { language: 'Go', icon: '🐹', detected: true, toolAvailable: true, total, critical: 0, high: total, moderate: 0, low: 0, packages };
+}
+
+function auditRuby(dir: string): LanguageAuditResult {
+  if (!cmdExists('bundle-audit')) return emptyLang('Ruby', '💎', 'gem install bundler-audit');
+  const raw = tryRun('bundle-audit check --update', dir);
+  const nameLines = raw.split('\n').filter(l => l.trim().startsWith('Name:'));
+  const packages: AuditPackage[] = nameLines.map(l => ({ name: l.replace('Name:', '').trim(), severity: 'high', via: [], fixAvailable: false }));
+  return { language: 'Ruby', icon: '💎', detected: true, toolAvailable: true, total: packages.length, critical: 0, high: packages.length, moderate: 0, low: 0, packages };
+}
+
+function auditRust(dir: string): LanguageAuditResult {
+  if (!cmdExists('cargo')) return emptyLang('Rust', '🦀', 'Install Rust: https://rustup.rs');
+  const raw = tryRun('cargo audit --json', dir, 60000);
+  try {
+    const result = JSON.parse(raw);
+    const vulns: any[] = result.vulnerabilities?.list || [];
+    const packages: AuditPackage[] = vulns.map(v => ({
+      name: v.package?.name || '', severity: v.advisory?.severity || 'high',
+      via: [v.advisory?.title || ''], fixAvailable: !!v.versions?.patched?.length,
+    }));
+    return { language: 'Rust', icon: '🦀', detected: true, toolAvailable: true, total: vulns.length, critical: 0, high: vulns.length, moderate: 0, low: 0, packages };
+  } catch { return { language: 'Rust', icon: '🦀', detected: true, toolAvailable: true, total: 0, critical: 0, high: 0, moderate: 0, low: 0, packages: [] }; }
+}
+
+function auditFlutter(dir: string): LanguageAuditResult {
+  const tool = cmdExists('dart') ? 'dart' : cmdExists('flutter') ? 'flutter' : null;
+  if (!tool) return emptyLang('Flutter/Dart', '💙', 'Install Flutter: https://flutter.dev');
+  return { language: 'Flutter/Dart', icon: '💙', detected: true, toolAvailable: true, total: 0, critical: 0, high: 0, moderate: 0, low: 0, packages: [], installHint: 'Run "dart pub upgrade" to update dependencies' };
+}
+
+function auditDotNet(dir: string): LanguageAuditResult {
+  if (!cmdExists('dotnet')) return emptyLang('.NET', '💜', 'Install .NET SDK: https://dot.net');
+  const raw = tryRun('dotnet list package --vulnerable --include-transitive', dir, 60000);
+  const lines = raw.split('\n').filter(l => l.trim().startsWith('>'));
+  const packages: AuditPackage[] = lines.map(l => ({ name: l.trim().split(/\s+/)[1] || l.trim(), severity: 'high', via: [], fixAvailable: false }));
+  return { language: '.NET', icon: '💜', detected: true, toolAvailable: true, total: packages.length, critical: 0, high: packages.length, moderate: 0, low: 0, packages };
+}
+
+function auditJava(dir: string): LanguageAuditResult {
+  const hasMvn = cmdExists('mvn');
+  return {
+    language: 'Java', icon: '☕', detected: true, toolAvailable: hasMvn,
+    total: 0, critical: 0, high: 0, moderate: 0, low: 0, packages: [],
+    installHint: hasMvn ? 'Run: mvn org.owasp:dependency-check-maven:check' : 'Install Maven: https://maven.apache.org',
+  };
+}
+
+function auditSwift(dir: string): LanguageAuditResult {
+  return emptyLang('Swift', '🍎', 'No standard CLI vuln scanner — check https://github.com/nicklockwood/SwiftFormat');
+}
+
+// ─── Main multi-language audit ────────────────────────────────────────────────
+
+export function runVulnerabilityAudit(projectPath: string): VulnerabilitySummary {
+  const results: LanguageAuditResult[] = [];
+
+  if (hasFile(projectPath, 'package.json'))                                      results.push(auditNode(projectPath));
+  if (hasFile(projectPath, 'requirements.txt', 'pyproject.toml', 'Pipfile', 'setup.py')) results.push(auditPython(projectPath));
+  if (hasFile(projectPath, 'composer.json'))                                     results.push(auditPhp(projectPath));
+  if (hasFile(projectPath, 'go.mod'))                                            results.push(auditGo(projectPath));
+  if (hasFile(projectPath, 'Gemfile'))                                           results.push(auditRuby(projectPath));
+  if (hasFile(projectPath, 'Cargo.toml'))                                        results.push(auditRust(projectPath));
+  if (hasFile(projectPath, 'pubspec.yaml'))                                      results.push(auditFlutter(projectPath));
+  if (hasFile(projectPath, 'pom.xml', 'build.gradle', 'build.gradle.kts'))      results.push(auditJava(projectPath));
+  if (hasFilePattern(projectPath, /\.(csproj|sln|fsproj)$/))                     results.push(auditDotNet(projectPath));
+  if (hasFile(projectPath, 'Package.swift'))                                     results.push(auditSwift(projectPath));
+
+  const total    = results.reduce((s, r) => s + r.total, 0);
+  const critical = results.reduce((s, r) => s + r.critical, 0);
+  const high     = results.reduce((s, r) => s + r.high, 0);
+  const moderate = results.reduce((s, r) => s + r.moderate, 0);
+  const low      = results.reduce((s, r) => s + r.low, 0);
+  const packages = results.flatMap(r => r.packages);
+
+  return { total, critical, high, moderate, low, info: 0, packages, languages: results };
 }
 
 function severityColor(severity: SecretFinding['severity']): (s: string) => string {
@@ -251,21 +387,34 @@ export function printSecurityReport(report: SecurityReport): void {
   // Vulnerabilities section
   const v = report.vulnerabilities;
   console.log(divider);
+  console.log(L + chalk.bold.cyan('🔍  Dependency Audit'));
+  console.log(L);
 
-  if (v.total === 0) {
-    console.log(L + chalk.green('✔  No npm vulnerabilities found'));
+  if (v.languages.length === 0) {
+    console.log(L + chalk.gray('   No recognized project type detected'));
   } else {
-    const color = v.critical > 0 || v.high > 0 ? chalk.red : chalk.yellow;
-    console.log(L + color.bold(`⚠  ${v.total} npm vulnerabilit${v.total === 1 ? 'y' : 'ies'}`));
-    if (v.critical)  console.log(L + chalk.red(`   Critical : ${v.critical}`));
-    if (v.high)      console.log(L + chalk.red(`   High     : ${v.high}`));
-    if (v.moderate)  console.log(L + chalk.yellow(`   Moderate : ${v.moderate}`));
-    if (v.low)       console.log(L + chalk.gray(`   Low      : ${v.low}`));
-    for (const pkg of v.packages.slice(0, 5)) {
-      console.log(L + chalk.gray(`   •  ${pkg.name} [${pkg.severity}]${pkg.fixAvailable ? ' — fix available' : ''}`));
-    }
-    if (v.packages.length > 5) {
-      console.log(L + chalk.gray(`   …  and ${v.packages.length - 5} more`));
+    for (const lang of v.languages) {
+      const nameTag = `${lang.icon}  ${lang.language.padEnd(14)}`;
+      if (!lang.toolAvailable) {
+        console.log(L + chalk.gray(`${nameTag}`) + chalk.gray('  tool not installed'));
+        if (lang.installHint) console.log(L + chalk.gray(`                       ↳  ${lang.installHint}`));
+      } else if (lang.total === 0) {
+        const hint = lang.installHint ? chalk.gray(`  ↳  ${lang.installHint}`) : '';
+        console.log(L + chalk.gray(`${nameTag}`) + chalk.green('  ✔  clean') + hint);
+      } else {
+        const color = lang.critical > 0 || lang.high > 0 ? chalk.red : chalk.yellow;
+        console.log(L + chalk.gray(`${nameTag}`) + color(`  ⚠  ${lang.total} issue${lang.total > 1 ? 's' : ''}`));
+        if (lang.critical)  console.log(L + chalk.red(`                       Critical : ${lang.critical}`));
+        if (lang.high)      console.log(L + chalk.red(`                       High     : ${lang.high}`));
+        if (lang.moderate)  console.log(L + chalk.yellow(`                       Moderate : ${lang.moderate}`));
+        if (lang.low)       console.log(L + chalk.gray(`                       Low      : ${lang.low}`));
+        for (const pkg of lang.packages.slice(0, 3)) {
+          console.log(L + chalk.gray(`                       •  ${pkg.name} [${pkg.severity}]${pkg.fixAvailable ? ' — fix available' : ''}`));
+        }
+        if (lang.packages.length > 3) {
+          console.log(L + chalk.gray(`                       …  and ${lang.packages.length - 3} more`));
+        }
+      }
     }
   }
 

@@ -6,6 +6,7 @@ import ora from 'ora';
 import * as path from 'path';
 import * as readline from 'readline';
 import { runSecurityChecks, printSecurityReport, saveSecurityReport } from './security';
+import { getApiKey, getOpenAiApiKey, getGlobalConfig, saveGlobalConfig } from './config';
 
 dotenv.config({ quiet: true } as any);
 
@@ -39,6 +40,36 @@ function stepTag(n: number, total: number): string {
     return chalk.cyan.bold(`[${n}/${total}]`);
 }
 
+async function ensureApiKeys(): Promise<void> {
+    if (getApiKey() || getOpenAiApiKey()) return;
+
+    console.log(chalk.yellow('\n  ⚠  No API key configured yet.'));
+    console.log(chalk.gray('  ↳  Get a free Gemini key: https://aistudio.google.com/app/apikey'));
+    console.log(chalk.gray('  ↳  Press Enter to skip any key.\n'));
+
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    const ask = (q: string): Promise<string> => new Promise(resolve => {
+        process.stdout.write(chalk.cyan('  ›') + '  ' + chalk.white(q) + chalk.cyan(': '));
+        rl.once('line', ans => resolve(ans.trim()));
+    });
+
+    const geminiKey = await ask('Gemini API Key  (primary, free) ');
+    const openaiKey = await ask('OpenAI API Key  (fallback, optional)');
+    rl.close();
+
+    if (!geminiKey && !openaiKey) {
+        console.log(chalk.red('\n  ✖  At least one API key is required to continue.\n'));
+        process.exit(1);
+    }
+
+    const config = getGlobalConfig();
+    if (geminiKey) config.GEMINI_API_KEY = geminiKey;
+    if (openaiKey) config.OPENAI_API_KEY = openaiKey;
+    saveGlobalConfig(config);
+
+    console.log(chalk.green('\n  ✔  API key saved. Continuing...\n'));
+}
+
 function askYesNo(question: string): Promise<boolean> {
     return new Promise((resolve) => {
         const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -66,6 +97,7 @@ function askYesNo(question: string): Promise<boolean> {
 
 export async function runGitWorkflow() {
     printHeader();
+    await ensureApiKeys();
 
     try {
         const TOTAL = 5;
