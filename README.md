@@ -33,6 +33,18 @@ Run `git-auto` in any project folder. The tool will:
 | 💾 | Commit the changes |
 | ☁️ | Push to GitHub / GitLab |
 
+### All commands
+
+| Command | Description |
+|---------|-------------|
+| `git-auto` | Run the full workflow |
+| `git-auto --config` | Set Gemini or OpenAI API keys interactively |
+| `git-auto --custom-command` | Set a custom command alias (e.g. `gitsync`) |
+| `git-auto --reset-command` | Reset alias back to `git-auto` |
+| `git-auto --show-command` | Show the currently active command name |
+| `git-auto --help` | Show the help screen |
+| `git-auto --version` | Show version number |
+
 ---
 
 ## 📦 Installation
@@ -259,7 +271,10 @@ cd apps/cli && npm run dev
 
 ## 📋 Changelog
 
-### v1.1.8 — Current
+### v1.1.9 — Current
+- **`git-auto --config`** — interactive menu to set Gemini or OpenAI API keys at any time; shows live configured/not-set status for each key
+
+### v1.1.8
 - **Custom command alias** — `git-auto --custom-command` lets you set any name (e.g. `gitsync`); running that name triggers the full workflow
 - **Reset alias** — `git-auto --reset-command` removes the alias and restores `git-auto` as default
 - **Show active command** — `git-auto --show-command` prints the currently active command

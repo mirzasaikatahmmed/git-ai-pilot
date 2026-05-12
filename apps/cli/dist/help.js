@@ -27,6 +27,7 @@ function printHelp() {
     const cmd = (c) => chalk_1.default.cyan.bold(c);
     const desc = (d) => chalk_1.default.gray(d);
     console.log(`  ${cmd(activeCmd.padEnd(28))} ${desc('Run the full workflow')}`);
+    console.log(`  ${cmd('git-auto --config'.padEnd(28))} ${desc('Set Gemini or OpenAI API keys')}`);
     console.log(`  ${cmd('git-auto --custom-command'.padEnd(28))} ${desc('Set a custom command alias')}`);
     console.log(`  ${cmd('git-auto --reset-command'.padEnd(28))} ${desc('Reset alias back to git-auto')}`);
     console.log(`  ${cmd('git-auto --show-command'.padEnd(28))} ${desc('Show the active command name')}`);

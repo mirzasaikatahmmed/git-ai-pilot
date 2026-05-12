@@ -76,19 +76,38 @@ Remove-Item -Recurse -Force "$env:USERPROFILE\.git-ai-pilot"
 
 ---
 
-## 🔑 One-Time Setup
+## 🔑 API Key Setup
 
-After installation, the tool will ask for your API keys.
+After installation the tool will prompt for your API keys on first run. You can also set or update them any time with:
 
-### Gemini API Key (primary, free)
-1.  Go to [Google AI Studio](https://aistudio.google.com/app/apikey) and click **Create API Key**.
-2.  Paste it into the terminal when prompted.
+```bash
+git-auto --config
+```
 
-### OpenAI API Key (fallback, optional)
-1.  Go to [OpenAI Platform](https://platform.openai.com/api-keys) and create a key.
-2.  Paste it when prompted (or skip if you only want Gemini).
+```
+  ╔══════════════════════════════════════════════════════╗
+  ║         ✈️   Git AI Pilot — Configuration            ║
+  ╚══════════════════════════════════════════════════════╝
 
-*If you missed setup during install, just run `git-auto` — it will guide you again.*
+  Select an option:
+
+  [1]  Gemini API Key  (primary, free)    ✔  configured
+  [2]  OpenAI API Key  (fallback)         –  not set
+
+  Press 1 or 2 to select, or Ctrl+C to exit.
+
+  ›  Option:
+```
+
+Press `1` or `2` to choose which key to set. Press `Enter` on an existing key to keep it unchanged.
+
+### Get your keys
+| Provider | Link | Role |
+|----------|------|------|
+| Google Gemini | [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) | Primary (free) |
+| OpenAI | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) | Fallback (optional) |
+
+Keys are stored in `~/.git-ai-pilot/config.json` — never inside your project.
 
 ---
 
@@ -101,7 +120,19 @@ After installation, the tool will ask for your API keys.
 git-auto
 ```
 
-3.  **The workflow:**
+3.  **All available commands:**
+
+| Command | Description |
+|---------|-------------|
+| `git-auto` | Run the full workflow |
+| `git-auto --config` | Set Gemini or OpenAI API keys |
+| `git-auto --custom-command` | Set a custom command alias |
+| `git-auto --reset-command` | Reset alias back to `git-auto` |
+| `git-auto --show-command` | Show the active command name |
+| `git-auto --help` | Show the help screen |
+| `git-auto --version` | Show version number |
+
+4.  **The workflow:**
 
 ```
 Pull latest changes from remote? (y/n):
@@ -212,7 +243,10 @@ A: Just press `n` when asked. The rest of the workflow continues normally.
 
 ## 📋 Changelog
 
-### v1.1.8 — Current
+### v1.1.9 — Current
+- **`git-auto --config`** — interactive menu to set Gemini or OpenAI API keys at any time; shows live configured/not-set status for each key
+
+### v1.1.8
 - **Custom command alias** — `git-auto --custom-command` sets any alias (e.g. `gitsync`); alias triggers full workflow
 - **Reset alias** — `git-auto --reset-command` removes alias and restores `git-auto`
 - **Show active command** — `git-auto --show-command`
