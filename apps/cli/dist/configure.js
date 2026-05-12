@@ -38,8 +38,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runConfig = runConfig;
 const readline = __importStar(require("readline"));
+const dotenv = __importStar(require("dotenv"));
 const chalk_1 = __importDefault(require("chalk"));
 const config_1 = require("./config");
+dotenv.config({ quiet: true });
 const W = 52;
 function printConfigHeader() {
     const title = ' ✈️   Git AI Pilot — Configuration ';
@@ -58,7 +60,8 @@ function printMenu(config) {
     console.log(chalk_1.default.bold.white('  Select an option:\n'));
     console.log(`  ${chalk_1.default.cyan.bold('[1]')}  Gemini API Key  ${chalk_1.default.gray('(primary, free)')}   ${keyStatus(config.GEMINI_API_KEY)}`);
     console.log(`  ${chalk_1.default.cyan.bold('[2]')}  OpenAI API Key  ${chalk_1.default.gray('(fallback)     ')}   ${keyStatus(config.OPENAI_API_KEY)}`);
-    console.log(chalk_1.default.gray('\n  Press 1 or 2 to select, or Ctrl+C to exit.\n'));
+    console.log(`  ${chalk_1.default.red.bold('[3]')}  Exit`);
+    console.log(chalk_1.default.gray('\n  Press 1, 2 or 3.\n'));
 }
 function pickOption() {
     return new Promise((resolve) => {
@@ -73,21 +76,21 @@ function pickOption() {
                 process.stdout.write('\n');
                 process.exit(0);
             }
-            if (char === '1' || char === '2') {
+            if (char === '1' || char === '2' || char === '3') {
                 process.stdout.write(chalk_1.default.greenBright(char + '\n'));
                 resolve(char);
             }
             else {
                 process.stdout.write(chalk_1.default.red(char + '\n'));
-                process.stdout.write(chalk_1.default.yellow('  ⚠  Please press 1 or 2.\n\n'));
-                resolve(pickOption()); // retry
+                process.stdout.write(chalk_1.default.yellow('  ⚠  Please press 1, 2 or 3.\n\n'));
+                resolve(pickOption());
             }
         });
     });
 }
 function inputKey(label, current) {
     return new Promise((resolve) => {
-        const hint = current ? chalk_1.default.gray(' (press Enter to keep current)') : '';
+        const hint = current ? chalk_1.default.gray(' (Enter to keep current)') : '';
         const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
         process.stdout.write(chalk_1.default.cyan('\n  ›') + '  ' + chalk_1.default.white(label) + hint + chalk_1.default.cyan(': '));
         rl.once('line', (answer) => {
@@ -101,6 +104,10 @@ async function runConfig() {
     const config = (0, config_1.getGlobalConfig)();
     printMenu(config);
     const choice = await pickOption();
+    if (choice === '3') {
+        console.log(chalk_1.default.gray('\n  Exiting config.\n'));
+        return;
+    }
     if (choice === '1') {
         const value = await inputKey('Gemini API Key', config.GEMINI_API_KEY);
         if (!value && config.GEMINI_API_KEY) {

@@ -1,6 +1,9 @@
 import * as readline from 'readline';
+import * as dotenv from 'dotenv';
 import chalk from 'chalk';
 import { getGlobalConfig, saveGlobalConfig } from './config';
+
+(dotenv as any).config({ quiet: true });
 
 const W = 52;
 
@@ -21,16 +24,13 @@ function keyStatus(key?: string): string {
 
 function printMenu(config: ReturnType<typeof getGlobalConfig>) {
     console.log(chalk.bold.white('  Select an option:\n'));
-    console.log(
-        `  ${chalk.cyan.bold('[1]')}  Gemini API Key  ${chalk.gray('(primary, free)')}   ${keyStatus(config.GEMINI_API_KEY)}`
-    );
-    console.log(
-        `  ${chalk.cyan.bold('[2]')}  OpenAI API Key  ${chalk.gray('(fallback)     ')}   ${keyStatus(config.OPENAI_API_KEY)}`
-    );
-    console.log(chalk.gray('\n  Press 1 or 2 to select, or Ctrl+C to exit.\n'));
+    console.log(`  ${chalk.cyan.bold('[1]')}  Gemini API Key  ${chalk.gray('(primary, free)')}   ${keyStatus(config.GEMINI_API_KEY)}`);
+    console.log(`  ${chalk.cyan.bold('[2]')}  OpenAI API Key  ${chalk.gray('(fallback)     ')}   ${keyStatus(config.OPENAI_API_KEY)}`);
+    console.log(`  ${chalk.red.bold('[3]')}  Exit`);
+    console.log(chalk.gray('\n  Press 1, 2 or 3.\n'));
 }
 
-function pickOption(): Promise<'1' | '2'> {
+function pickOption(): Promise<'1' | '2' | '3'> {
     return new Promise((resolve) => {
         process.stdout.write(chalk.cyan('  ›') + '  ' + chalk.white('Option') + chalk.cyan(': '));
         process.stdin.setRawMode(true);
@@ -39,17 +39,17 @@ function pickOption(): Promise<'1' | '2'> {
             const char = key.toString();
             process.stdin.setRawMode(false);
             process.stdin.pause();
-            if (char === '') {           // Ctrl+C
+            if (char === '') {     // Ctrl+C
                 process.stdout.write('\n');
                 process.exit(0);
             }
-            if (char === '1' || char === '2') {
+            if (char === '1' || char === '2' || char === '3') {
                 process.stdout.write(chalk.greenBright(char + '\n'));
-                resolve(char as '1' | '2');
+                resolve(char as '1' | '2' | '3');
             } else {
                 process.stdout.write(chalk.red(char + '\n'));
-                process.stdout.write(chalk.yellow('  ⚠  Please press 1 or 2.\n\n'));
-                resolve(pickOption() as unknown as '1' | '2'); // retry
+                process.stdout.write(chalk.yellow('  ⚠  Please press 1, 2 or 3.\n\n'));
+                resolve(pickOption());
             }
         });
     });
@@ -57,7 +57,7 @@ function pickOption(): Promise<'1' | '2'> {
 
 function inputKey(label: string, current?: string): Promise<string> {
     return new Promise((resolve) => {
-        const hint = current ? chalk.gray(' (press Enter to keep current)') : '';
+        const hint = current ? chalk.gray(' (Enter to keep current)') : '';
         const rl   = readline.createInterface({ input: process.stdin, output: process.stdout });
         process.stdout.write(chalk.cyan('\n  ›') + '  ' + chalk.white(label) + hint + chalk.cyan(': '));
         rl.once('line', (answer) => {
@@ -74,6 +74,11 @@ export async function runConfig(): Promise<void> {
     printMenu(config);
 
     const choice = await pickOption();
+
+    if (choice === '3') {
+        console.log(chalk.gray('\n  Exiting config.\n'));
+        return;
+    }
 
     if (choice === '1') {
         const value = await inputKey('Gemini API Key', config.GEMINI_API_KEY);
