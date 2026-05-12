@@ -8,6 +8,7 @@ export interface SecretFinding {
   file: string;
   line: number;
   type: string;
+  severity: 'critical' | 'high' | 'medium';
   content: string;
 }
 
@@ -35,17 +36,42 @@ export interface SecurityReport {
   vulnerabilities: VulnerabilitySummary;
 }
 
-const SECRET_PATTERNS: Array<{ name: string; pattern: RegExp }> = [
-  { name: 'AWS Access Key ID',  pattern: /AKIA[0-9A-Z]{16}/g },
-  { name: 'AWS Secret Key',     pattern: /(?:aws_secret_access_key|AWS_SECRET)\s*[=:]\s*['"]?[A-Za-z0-9+/]{40}['"]?/gi },
-  { name: 'Google API Key',     pattern: /AIza[0-9A-Za-z\-_]{35}/g },
-  { name: 'OpenAI API Key',     pattern: /sk-[A-Za-z0-9]{48}/g },
-  { name: 'GitHub Token',       pattern: /gh[pousr]_[A-Za-z0-9_]{36,}/g },
-  { name: 'Stripe Secret Key',  pattern: /sk_(?:live|test)_[0-9a-zA-Z]{24,}/g },
-  { name: 'Slack Token',        pattern: /xox[baprs]-[0-9A-Za-z\-]{10,}/g },
-  { name: 'JWT Token',          pattern: /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g },
-  { name: 'Private Key',        pattern: /-----BEGIN\s+(?:RSA|EC|OPENSSH|DSA|PGP)\s+PRIVATE KEY-----/g },
-  { name: 'Hardcoded Secret',   pattern: /(?:secret|password|passwd|api[_-]?key|auth[_-]?token)\s*[=:]\s*['"][^'"]{8,}['"]/gi },
+// Files that should never be committed — flagged on sight regardless of content
+const SENSITIVE_FILE_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
+  { pattern: /(?:^|\/)\.env$/, label: '.env file' },
+  { pattern: /(?:^|\/)\.env\.(?:local|prod|production|dev|development|staging|test|example\.local)$/, label: '.env variant' },
+  { pattern: /\.pem$/, label: 'PEM certificate/key' },
+  { pattern: /(?:^|\/)id_(?:rsa|dsa|ecdsa|ed25519)$/, label: 'SSH private key' },
+  { pattern: /(?:^|\/)credentials\.(?:json|yml|yaml)$/, label: 'credentials file' },
+  { pattern: /(?:^|\/)secrets\.(?:json|yml|yaml)$/, label: 'secrets file' },
+  { pattern: /\.(?:keystore|jks|p12|pfx)$/, label: 'certificate keystore' },
+  { pattern: /(?:^|\/)serviceAccount(?:Key)?\.json$/, label: 'service account key' },
+  { pattern: /(?:^|\/)(?:aws|gcloud|azure)_credentials$/, label: 'cloud credentials file' },
+  { pattern: /(?:^|\/)\.(?:netrc|pgpass|npmrc)$/, label: 'auth config file' },
+];
+
+// Inline secret patterns — applied to every added line in the diff
+const SECRET_PATTERNS: Array<{ name: string; severity: 'critical' | 'high' | 'medium'; pattern: RegExp }> = [
+  // Specific provider tokens — high confidence
+  { name: 'AWS Access Key ID',       severity: 'critical', pattern: /AKIA[0-9A-Z]{16}/g },
+  { name: 'AWS Secret Access Key',   severity: 'critical', pattern: /(?:aws_secret_access_key|AWS_SECRET)\s*[=:]\s*['"]?[A-Za-z0-9+/]{40}['"]?/gi },
+  { name: 'Google API Key',          severity: 'critical', pattern: /AIza[0-9A-Za-z\-_]{35}/g },
+  { name: 'OpenAI API Key',          severity: 'critical', pattern: /sk-[A-Za-z0-9]{48}/g },
+  { name: 'GitHub Token',            severity: 'critical', pattern: /gh[pousr]_[A-Za-z0-9_]{36,}/g },
+  { name: 'Stripe Secret Key',       severity: 'critical', pattern: /sk_(?:live|test)_[0-9a-zA-Z]{24,}/g },
+  { name: 'Slack Token',             severity: 'high',     pattern: /xox[baprs]-[0-9A-Za-z\-]{10,}/g },
+  { name: 'JWT Token',               severity: 'high',     pattern: /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g },
+  { name: 'Private Key Header',      severity: 'critical', pattern: /-----BEGIN\s+(?:RSA|EC|OPENSSH|DSA|PGP)\s+PRIVATE KEY-----/g },
+
+  // Database / connection strings with embedded credentials
+  { name: 'Database URL',            severity: 'critical', pattern: /(?:mysql|postgres(?:ql)?|mongodb(?:\+srv)?|redis|amqp|mssql):\/\/[^:/@\s]+:[^@\s]{3,}@/gi },
+  { name: 'Connection String Pwd',   severity: 'high',     pattern: /(?:Password|PWD)\s*=\s*(?!your|example|<)[^\s;,'"]{4,}/gi },
+
+  // .env-style unquoted values (KEY=value with no quotes)
+  { name: 'ENV Secret Variable',     severity: 'high',     pattern: /(?:^|[\s;])(?:[A-Z][A-Z0-9_]*_)?(?:API_?KEY|SECRET|TOKEN|PASSWORD|PASSWD|PWD|AUTH_?TOKEN|PRIVATE_?KEY|ACCESS_?KEY|CLIENT_?SECRET)\s*=\s*(?!your|example|test|fake|dummy|<|true|false|\s*$)[^\s#'"]{6,}/gm },
+
+  // Quoted values in code / config
+  { name: 'Hardcoded Secret',        severity: 'medium',   pattern: /(?:secret|password|passwd|api[_-]?key|auth[_-]?token)\s*[=:]\s*['"][^'"]{8,}['"]/gi },
 ];
 
 const SKIP_FILE_PATTERNS = [
@@ -59,25 +85,22 @@ const SKIP_FILE_PATTERNS = [
   /pnpm-lock\.yaml$/,
 ];
 
-const SKIP_LINE_PATTERN = /example|placeholder|your[_-]?key|<[^>]+>|\*{4}|dummy|fake/i;
+const SKIP_LINE_PATTERN = /example|placeholder|your[_-]?(?:key|secret|token)|<[^>]+>|\*{4,}|dummy|fake/i;
 
 function shouldSkipFile(filePath: string): boolean {
   return SKIP_FILE_PATTERNS.some(p => p.test(filePath));
 }
 
-export async function scanSecretsInCommits(git: SimpleGit): Promise<SecretFinding[]> {
-  const findings: SecretFinding[] = [];
-
-  let diff = '';
-  try {
-    diff = await git.diff(['@{u}...HEAD']);
-  } catch {
-    try {
-      diff = await git.diff(['HEAD']);
-    } catch {
-      return findings;
-    }
+function isSensitiveFile(filePath: string): string | null {
+  for (const { pattern, label } of SENSITIVE_FILE_PATTERNS) {
+    if (pattern.test(filePath)) return label;
   }
+  return null;
+}
+
+export async function scanSecretsInDiff(diff: string): Promise<SecretFinding[]> {
+  const findings: SecretFinding[] = [];
+  const flaggedFiles = new Set<string>();
 
   if (!diff) return findings;
 
@@ -88,6 +111,19 @@ export async function scanSecretsInCommits(git: SimpleGit): Promise<SecretFindin
     if (raw.startsWith('+++ b/')) {
       currentFile = raw.slice(6);
       lineNum = 0;
+
+      // Flag sensitive files by name the moment they appear in the diff
+      const sensitiveLabel = isSensitiveFile(currentFile);
+      if (sensitiveLabel && !flaggedFiles.has(currentFile)) {
+        flaggedFiles.add(currentFile);
+        findings.push({
+          file: currentFile,
+          line: 0,
+          type: `Sensitive file committed (${sensitiveLabel})`,
+          severity: 'critical',
+          content: currentFile,
+        });
+      }
     } else if (raw.startsWith('@@ ')) {
       const m = raw.match(/@@ -\d+(?:,\d+)? \+(\d+)/);
       lineNum = m ? parseInt(m[1]) - 1 : 0;
@@ -97,13 +133,14 @@ export async function scanSecretsInCommits(git: SimpleGit): Promise<SecretFindin
       const content = raw.slice(1);
       if (SKIP_LINE_PATTERN.test(content)) continue;
 
-      for (const { name, pattern } of SECRET_PATTERNS) {
+      for (const { name, severity, pattern } of SECRET_PATTERNS) {
         pattern.lastIndex = 0;
         if (pattern.exec(content)) {
           findings.push({
             file: currentFile,
             line: lineNum,
             type: name,
+            severity,
             content: content.trim().slice(0, 120),
           });
         }
@@ -158,6 +195,12 @@ export function runVulnerabilityAudit(projectPath: string): VulnerabilitySummary
   }
 }
 
+function severityColor(severity: SecretFinding['severity']): (s: string) => string {
+  if (severity === 'critical') return chalk.red;
+  if (severity === 'high')     return chalk.yellow;
+  return chalk.magenta;
+}
+
 export function printSecurityReport(report: SecurityReport): void {
   console.log('\n' + chalk.bold('━━━ Security Scan Report ━━━'));
   console.log(chalk.gray(`  Time: ${report.timestamp}`));
@@ -165,14 +208,27 @@ export function printSecurityReport(report: SecurityReport): void {
   if (report.secrets.length === 0) {
     console.log(chalk.green('  ✔  No secrets detected'));
   } else {
-    console.log(chalk.red(`  ✖  ${report.secrets.length} secret(s) found in diff:`));
+    const critCount = report.secrets.filter(s => s.severity === 'critical').length;
+    const highCount  = report.secrets.filter(s => s.severity === 'high').length;
+    const medCount   = report.secrets.filter(s => s.severity === 'medium').length;
+
+    console.log(chalk.red(`  ✖  ${report.secrets.length} secret(s) found:`));
+    if (critCount) console.log(chalk.red(`     Critical : ${critCount}`));
+    if (highCount) console.log(chalk.yellow(`     High     : ${highCount}`));
+    if (medCount)  console.log(chalk.magenta(`     Medium   : ${medCount}`));
+    console.log('');
+
     for (const s of report.secrets) {
-      console.log(chalk.red(`     [${s.type}] ${s.file}:${s.line}`));
-      console.log(chalk.gray(`       → ${s.content}`));
+      const color = severityColor(s.severity);
+      const location = s.line > 0 ? `${s.file}:${s.line}` : s.file;
+      console.log(color(`     [${s.severity.toUpperCase()}] ${s.type}`));
+      console.log(chalk.gray(`       ${location}`));
+      if (s.line > 0) console.log(chalk.gray(`       → ${s.content}`));
     }
   }
 
   const v = report.vulnerabilities;
+  console.log('');
   if (v.total === 0) {
     console.log(chalk.green('  ✔  No npm vulnerabilities found'));
   } else {
@@ -207,7 +263,13 @@ export function saveSecurityReport(report: SecurityReport, reportsDir: string): 
 }
 
 export async function runSecurityChecks(git: SimpleGit, projectPath: string): Promise<SecurityReport> {
-  const secrets = await scanSecretsInCommits(git);
+  // Scan unstaged working-directory changes (before git add)
+  let diff = '';
+  try {
+    diff = await git.diff();
+  } catch { /* no diff available */ }
+
+  const secrets = await scanSecretsInDiff(diff);
   const vulnerabilities = runVulnerabilityAudit(projectPath);
 
   return {
