@@ -243,7 +243,11 @@ A: Just press `n` when asked. The rest of the workflow continues normally.
 
 ## 📋 Changelog
 
-### v1.1.9 — Current
+### v1.2.0 — Current
+- **Windows fix** — `git-auto --custom-command` no longer fails with `Command failed: npm bin -g`; switched to `npm prefix -g` (the supported replacement) with correct path resolution on Windows and Unix
+- **Suppressed dotenv noise** — no more `[dotenv] injecting env (N)` lines on startup across all commands
+
+### v1.1.9
 - **`git-auto --config`** — interactive menu to set Gemini or OpenAI API keys at any time; shows live configured/not-set status for each key
 
 ### v1.1.8

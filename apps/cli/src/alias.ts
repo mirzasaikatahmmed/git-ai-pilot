@@ -3,8 +3,11 @@ import * as path from 'path';
 import * as os from 'os';
 import * as readline from 'readline';
 import { execSync } from 'child_process';
+import * as dotenv from 'dotenv';
 import chalk from 'chalk';
 import { getGlobalConfig, saveGlobalConfig } from './config';
+
+(dotenv as any).config({ quiet: true });
 
 const DEFAULT_CMD = 'git-auto';
 const W = 50;
@@ -32,44 +35,56 @@ function isWritable(dir: string): boolean {
     try { fs.accessSync(dir, fs.constants.W_OK); return true; } catch { return false; }
 }
 
+// npm bin -g is deprecated — use npm prefix -g instead.
+// On Windows the bin dir IS the prefix; on Unix it's prefix/bin.
+function getNpmBinDir(): string {
+    const prefix = execSync('npm prefix -g', {
+        encoding: 'utf-8',
+        timeout: 8000,
+        stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+
+    return process.platform === 'win32' ? prefix : path.join(prefix, 'bin');
+}
+
 function getBinDir(): string {
     try {
-        const npmBin = execSync('npm bin -g', { encoding: 'utf-8', timeout: 5000 }).trim();
+        const npmBin = getNpmBinDir();
         if (isWritable(npmBin)) return npmBin;
-    } catch { /* fall through */ }
+    } catch { /* fall through to local fallback */ }
 
-    // Fallback to ~/.local/bin
-    const localBin = path.join(os.homedir(), '.local', 'bin');
+    // Fallback: ~/.local/bin (Unix) or %APPDATA%\npm (Windows)
+    const localBin = process.platform === 'win32'
+        ? path.join(os.homedir(), 'AppData', 'Roaming', 'npm')
+        : path.join(os.homedir(), '.local', 'bin');
+
     if (!fs.existsSync(localBin)) fs.mkdirSync(localBin, { recursive: true });
     return localBin;
 }
 
-function getGitAutoBinPath(binDir: string): string {
-    return path.join(binDir, 'git-auto');
-}
-
 function createAliasFile(name: string, binDir: string): void {
-    const gitAutoPath = getGitAutoBinPath(binDir);
-    const aliasPath   = path.join(binDir, name);
+    const gitAutoCmd = path.join(binDir, 'git-auto');
 
     if (process.platform === 'win32') {
-        // Windows: create a .cmd wrapper
-        const cmdContent = `@echo off\r\ncall "${gitAutoPath}.cmd" %*\r\n`;
-        fs.writeFileSync(aliasPath + '.cmd', cmdContent, 'utf-8');
+        // Windows: .cmd wrapper that delegates to git-auto.cmd
+        const cmdContent = `@echo off\r\ncall "${gitAutoCmd}.cmd" %*\r\n`;
+        fs.writeFileSync(path.join(binDir, name + '.cmd'), cmdContent, 'utf-8');
     } else {
         // Unix: symlink → git-auto
+        const aliasPath = path.join(binDir, name);
         if (fs.existsSync(aliasPath)) fs.unlinkSync(aliasPath);
-        fs.symlinkSync(gitAutoPath, aliasPath);
+        fs.symlinkSync(gitAutoCmd, aliasPath);
         fs.chmodSync(aliasPath, '755');
     }
 }
 
 function removeAliasFile(name: string, binDir: string): void {
-    const aliasPath = path.join(binDir, name);
     if (process.platform === 'win32') {
-        if (fs.existsSync(aliasPath + '.cmd')) fs.unlinkSync(aliasPath + '.cmd');
+        const p = path.join(binDir, name + '.cmd');
+        if (fs.existsSync(p)) fs.unlinkSync(p);
     } else {
-        if (fs.existsSync(aliasPath)) fs.unlinkSync(aliasPath);
+        const p = path.join(binDir, name);
+        if (fs.existsSync(p)) fs.unlinkSync(p);
     }
 }
 
@@ -86,21 +101,28 @@ export async function setCustomCommand(): Promise<void> {
 
     const config = getGlobalConfig();
     if (config.customCommand) {
-        console.log(chalk.gray(`  Current custom command: `) + chalk.cyan.bold(config.customCommand));
+        console.log(chalk.gray('  Current: ') + chalk.cyan.bold(config.customCommand));
         console.log(chalk.gray('  Enter a new name to replace it, or press Ctrl+C to cancel.\n'));
     }
 
     const name = await promptInput('Enter custom command name (e.g. gitsync)');
 
-    const error = validateName(name);
-    if (error) {
-        console.log(chalk.red(`\n  ✖  ${error}\n`));
+    const validationError = validateName(name);
+    if (validationError) {
+        console.log(chalk.red(`\n  ✖  ${validationError}\n`));
         process.exit(1);
     }
 
-    const binDir = getBinDir();
+    let binDir: string;
+    try {
+        binDir = getBinDir();
+    } catch (err: any) {
+        console.log(chalk.red(`\n  ✖  Could not locate npm bin directory: ${err.message}\n`));
+        process.exit(1);
+        return;
+    }
 
-    // Remove previous alias if different
+    // Remove old alias if name changed
     if (config.customCommand && config.customCommand !== name) {
         try { removeAliasFile(config.customCommand, binDir); } catch { /* ignore */ }
     }
@@ -109,8 +131,9 @@ export async function setCustomCommand(): Promise<void> {
         createAliasFile(name, binDir);
         saveGlobalConfig({ ...config, customCommand: name });
 
-        const npmBin = execSync('npm bin -g', { encoding: 'utf-8', timeout: 5000 }).trim();
-        const isInPath = binDir === npmBin;
+        const savedPath = process.platform === 'win32'
+            ? path.join(binDir, name + '.cmd')
+            : path.join(binDir, name);
 
         console.log('\n' + chalk.green('  ╔' + '═'.repeat(W) + '╗'));
         console.log(chalk.green('  ║') + chalk.bold.greenBright(`  ✔  Custom command "${name}" created!`.padEnd(W)) + chalk.green('║'));
@@ -118,20 +141,15 @@ export async function setCustomCommand(): Promise<void> {
         console.log('');
         console.log(chalk.gray('  ↳  Run anywhere:  ') + chalk.cyan.bold(name));
         console.log(chalk.gray('  ↳  To reset:      ') + chalk.white('git-auto --reset-command'));
-        console.log(chalk.gray('  ↳  Saved to:      ') + chalk.gray(path.join(binDir, name)));
-
-        if (!isInPath) {
-            console.log('');
-            console.log(chalk.yellow('  ⚠  The bin directory may not be in your PATH.'));
-            console.log(chalk.yellow(`  ↳  Add this to ~/.bashrc or ~/.zshrc:`));
-            console.log(chalk.white(`     export PATH="${binDir}:$PATH"`));
-        }
+        console.log(chalk.gray('  ↳  Saved to:      ') + chalk.gray(savedPath));
         console.log('');
 
     } catch (err: any) {
         console.log(chalk.red(`\n  ✖  Failed to create alias: ${err.message}`));
-        if (process.platform !== 'win32') {
-            console.log(chalk.yellow(`  ↳  Try: sudo git-auto --custom-command\n`));
+        if (process.platform === 'win32') {
+            console.log(chalk.yellow('  ↳  Try running the terminal as Administrator.\n'));
+        } else {
+            console.log(chalk.yellow('  ↳  Try: sudo git-auto --custom-command\n'));
         }
         process.exit(1);
     }
@@ -144,24 +162,22 @@ export function resetCustomCommand(): void {
 
     if (!config.customCommand) {
         console.log(chalk.gray('  ℹ  No custom command is set.'));
-        console.log(chalk.gray('  ↳  Default command "git-auto" is already active.\n'));
+        console.log(chalk.gray('  ↳  Default "git-auto" is already active.\n'));
         return;
     }
 
-    const name   = config.customCommand;
-    const binDir = getBinDir();
+    const name = config.customCommand;
 
     try {
+        const binDir = getBinDir();
         removeAliasFile(name, binDir);
-        const { customCommand: _, ...rest } = config;
-        saveGlobalConfig(rest);
+    } catch { /* best-effort */ }
 
-        console.log(chalk.green(`  ✔  Custom command "${name}" removed.`));
-        console.log(chalk.gray('  ↳  Back to default: ') + chalk.cyan.bold('git-auto') + '\n');
-    } catch (err: any) {
-        console.log(chalk.red(`  ✖  Failed to remove alias: ${err.message}\n`));
-        process.exit(1);
-    }
+    const { customCommand: _removed, ...rest } = config;
+    saveGlobalConfig(rest);
+
+    console.log(chalk.green(`  ✔  Custom command "${name}" removed.`));
+    console.log(chalk.gray('  ↳  Back to default: ') + chalk.cyan.bold('git-auto') + '\n');
 }
 
 export function showCurrentCommand(): void {
