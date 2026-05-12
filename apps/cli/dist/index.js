@@ -44,7 +44,7 @@ const chalk_1 = __importDefault(require("chalk"));
 const ora_1 = __importDefault(require("ora"));
 const path = __importStar(require("path"));
 const security_1 = require("./security");
-dotenv.config();
+dotenv.config({ quiet: true });
 const git = (0, simple_git_1.simpleGit)();
 async function runGitWorkflow() {
     console.log(chalk_1.default.blue('🚀 Starting Git Automation Workflow...'));

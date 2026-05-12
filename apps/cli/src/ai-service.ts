@@ -1,7 +1,8 @@
 import { generateCommitMessage as generateCommitMessageGemini } from './gemini';
 import { generateCommitMessageOpenAI } from './openai';
 import chalk from 'chalk';
-import 'dotenv/config';
+import * as dotenv from 'dotenv';
+dotenv.config({ quiet: true } as any);
 
 export async function generateCommitMessage(diff: string): Promise<string> {
     try {

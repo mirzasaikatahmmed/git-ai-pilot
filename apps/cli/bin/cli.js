@@ -2,9 +2,10 @@
 
 const { program } = require('commander');
 const { runGitWorkflow } = require('../dist/index');
+const { version } = require('../package.json');
 
 program
-    .version('1.0.0')
+    .version(version)
     .description('Automated Git workflow with Gemini-generated commit messages')
     .action(async () => {
         try {

@@ -6,7 +6,7 @@ import ora from 'ora';
 import * as path from 'path';
 import { runSecurityChecks, printSecurityReport, saveSecurityReport } from './security';
 
-dotenv.config();
+dotenv.config({ quiet: true } as any);
 
 const git = simpleGit();
 
