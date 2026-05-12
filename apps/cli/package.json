@@ -1,6 +1,6 @@
 {
   "name": "git-ai-pilot",
-  "version": "1.0.13",
+  "version": "1.1.0",
   "description": "Automated Git workflow with Gemini-generated commit messages",
   "main": "dist/index.js",
   "bin": {

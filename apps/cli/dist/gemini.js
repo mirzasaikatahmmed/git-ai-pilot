@@ -44,7 +44,7 @@ async function generateCommitMessage(diff) {
         throw new Error('GEMINI_API_KEY is not configured. Please run the installation again or set it in your environment.');
     }
     const genAI = new generative_ai_1.GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const prompt = `
     You are an expert developer. Generate a concise and descriptive git commit message based on the following code changes (diff or file status).
     

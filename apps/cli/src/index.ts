@@ -3,6 +3,8 @@ import { generateCommitMessage } from './ai-service';
 import * as dotenv from 'dotenv';
 import chalk from 'chalk';
 import ora from 'ora';
+import * as path from 'path';
+import { runSecurityChecks, printSecurityReport, saveSecurityReport } from './security';
 
 dotenv.config();
 
@@ -36,7 +38,6 @@ export async function runGitWorkflow() {
         }
 
         const diff = await git.diff();
-        // If diff is too large, we might want to truncate it or just send file names
         const context = diff.length > 0 ? diff : JSON.stringify(status.files);
 
         const commitMessage = await generateCommitMessage(context);
@@ -47,7 +48,30 @@ export async function runGitWorkflow() {
         await git.commit(commitMessage);
         spinner.succeed('Committed changes');
 
-        // 5. Git Push
+        // 5. Security Scan (secrets + vulnerabilities) — runs before push
+        spinner.start('Running security scan...');
+        const projectPath = process.cwd();
+        const report = await runSecurityChecks(git, projectPath);
+        spinner.stop();
+
+        printSecurityReport(report);
+
+        if (!report.passed) {
+            const reportsDir = path.join(projectPath, '.security-reports');
+            const reportFile = saveSecurityReport(report, reportsDir);
+            console.log(chalk.red(`❌ Push blocked: secrets detected in diff.`));
+            console.log(chalk.yellow(`   Report saved to: ${reportFile}`));
+            console.log(chalk.yellow('   Remove the secrets and recommit before pushing.'));
+            process.exit(1);
+        }
+
+        if (report.vulnerabilities.total > 0) {
+            const reportsDir = path.join(projectPath, '.security-reports');
+            const reportFile = saveSecurityReport(report, reportsDir);
+            console.log(chalk.yellow(`   Vulnerability report saved to: ${reportFile}`));
+        }
+
+        // 6. Git Push
         spinner.start('Pushing to remote...');
         await git.push();
         spinner.succeed('Pushed to remote');

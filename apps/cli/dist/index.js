@@ -42,6 +42,8 @@ const ai_service_1 = require("./ai-service");
 const dotenv = __importStar(require("dotenv"));
 const chalk_1 = __importDefault(require("chalk"));
 const ora_1 = __importDefault(require("ora"));
+const path = __importStar(require("path"));
+const security_1 = require("./security");
 dotenv.config();
 const git = (0, simple_git_1.simpleGit)();
 async function runGitWorkflow() {
@@ -68,7 +70,6 @@ async function runGitWorkflow() {
             return;
         }
         const diff = await git.diff();
-        // If diff is too large, we might want to truncate it or just send file names
         const context = diff.length > 0 ? diff : JSON.stringify(status.files);
         const commitMessage = await (0, ai_service_1.generateCommitMessage)(context);
         spinner.succeed(`Generated commit message: ${commitMessage}`);
@@ -76,7 +77,26 @@ async function runGitWorkflow() {
         spinner.start('Committing...');
         await git.commit(commitMessage);
         spinner.succeed('Committed changes');
-        // 5. Git Push
+        // 5. Security Scan (secrets + vulnerabilities) — runs before push
+        spinner.start('Running security scan...');
+        const projectPath = process.cwd();
+        const report = await (0, security_1.runSecurityChecks)(git, projectPath);
+        spinner.stop();
+        (0, security_1.printSecurityReport)(report);
+        if (!report.passed) {
+            const reportsDir = path.join(projectPath, '.security-reports');
+            const reportFile = (0, security_1.saveSecurityReport)(report, reportsDir);
+            console.log(chalk_1.default.red(`❌ Push blocked: secrets detected in diff.`));
+            console.log(chalk_1.default.yellow(`   Report saved to: ${reportFile}`));
+            console.log(chalk_1.default.yellow('   Remove the secrets and recommit before pushing.'));
+            process.exit(1);
+        }
+        if (report.vulnerabilities.total > 0) {
+            const reportsDir = path.join(projectPath, '.security-reports');
+            const reportFile = (0, security_1.saveSecurityReport)(report, reportsDir);
+            console.log(chalk_1.default.yellow(`   Vulnerability report saved to: ${reportFile}`));
+        }
+        // 6. Git Push
         spinner.start('Pushing to remote...');
         await git.push();
         spinner.succeed('Pushed to remote');

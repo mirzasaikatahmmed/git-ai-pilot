@@ -7,6 +7,7 @@ exports.generateCommitMessage = generateCommitMessage;
 const gemini_1 = require("./gemini");
 const openai_1 = require("./openai");
 const chalk_1 = __importDefault(require("chalk"));
+require("dotenv/config");
 async function generateCommitMessage(diff) {
     try {
         return await (0, gemini_1.generateCommitMessage)(diff);

@@ -63,7 +63,7 @@ async function generateCommitMessageOpenAI(diff) {
   `;
     const completion = await openai.chat.completions.create({
         messages: [{ role: 'user', content: prompt }],
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
     });
     const content = completion.choices[0].message.content;
     if (!content) {
