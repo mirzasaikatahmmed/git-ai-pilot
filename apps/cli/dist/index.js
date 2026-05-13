@@ -46,11 +46,12 @@ const path = __importStar(require("path"));
 const readline = __importStar(require("readline"));
 const security_1 = require("./security");
 const config_1 = require("./config");
+const update_check_1 = require("./update-check");
 dotenv.config({ quiet: true });
 const git = (0, simple_git_1.simpleGit)();
 const W = 50;
 const div = chalk_1.default.gray('  ' + '─'.repeat(W));
-function printHeader() {
+async function printHeader() {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { version } = require('../package.json');
     const title = ` ✈️   Git AI Pilot   v${version} `;
@@ -59,6 +60,7 @@ function printHeader() {
     console.log('\n' + chalk_1.default.cyan('  ╔' + '═'.repeat(W) + '╗'));
     console.log(chalk_1.default.cyan('  ║') + ' '.repeat(padL) + chalk_1.default.bold.white(title) + ' '.repeat(padR) + chalk_1.default.cyan('║'));
     console.log(chalk_1.default.cyan('  ╚' + '═'.repeat(W) + '╝'));
+    await (0, update_check_1.checkForUpdate)(version);
 }
 function printSuccess() {
     const msg = ' ✅  Workflow completed successfully! ';
@@ -122,7 +124,7 @@ function askYesNo(question) {
     });
 }
 async function runGitWorkflow() {
-    printHeader();
+    await printHeader();
     await ensureApiKeys();
     try {
         const TOTAL = 5;

@@ -7,6 +7,7 @@ import * as path from 'path';
 import * as readline from 'readline';
 import { runSecurityChecks, printSecurityReport, saveSecurityReport } from './security';
 import { getApiKey, getOpenAiApiKey, getGlobalConfig, saveGlobalConfig } from './config';
+import { checkForUpdate } from './update-check';
 
 dotenv.config({ quiet: true } as any);
 
@@ -15,7 +16,7 @@ const git = simpleGit();
 const W = 50;
 const div = chalk.gray('  ' + '─'.repeat(W));
 
-function printHeader() {
+async function printHeader() {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { version } = require('../package.json') as { version: string };
     const title = ` ✈️   Git AI Pilot   v${version} `;
@@ -24,6 +25,7 @@ function printHeader() {
     console.log('\n' + chalk.cyan('  ╔' + '═'.repeat(W) + '╗'));
     console.log(chalk.cyan('  ║') + ' '.repeat(padL) + chalk.bold.white(title) + ' '.repeat(padR) + chalk.cyan('║'));
     console.log(chalk.cyan('  ╚' + '═'.repeat(W) + '╝'));
+    await checkForUpdate(version);
 }
 
 function printSuccess() {
@@ -96,7 +98,7 @@ function askYesNo(question: string): Promise<boolean> {
 }
 
 export async function runGitWorkflow() {
-    printHeader();
+    await printHeader();
     await ensureApiKeys();
 
     try {
