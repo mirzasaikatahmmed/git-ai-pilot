@@ -74,6 +74,26 @@ function printSuccess() {
 function stepTag(n, total) {
     return chalk_1.default.cyan.bold(`[${n}/${total}]`);
 }
+function toHttpsUrl(remoteUrl) {
+    const ssh = remoteUrl.match(/^git@([^:]+):(.+?)(?:\.git)?$/);
+    if (ssh)
+        return `https://${ssh[1]}/${ssh[2]}`;
+    return remoteUrl.replace(/\.git$/, '');
+}
+async function getCommitUrl() {
+    try {
+        const remotes = await git.getRemotes(true);
+        const origin = remotes.find(r => r.name === 'origin');
+        if (!origin)
+            return null;
+        const base = toHttpsUrl(origin.refs.push || origin.refs.fetch);
+        const hash = (await git.revparse(['HEAD'])).trim();
+        return `${base}/commit/${hash}`;
+    }
+    catch {
+        return null;
+    }
+}
 async function ensureApiKeys() {
     if ((0, config_1.getApiKey)() || (0, config_1.getOpenAiApiKey)())
         return;
@@ -194,6 +214,10 @@ async function runGitWorkflow() {
         await git.commit(commitMessage);
         await git.push();
         spinner.succeed(chalk_1.default.white(' Committed and pushed to remote'));
+        const commitUrl = await getCommitUrl();
+        if (commitUrl) {
+            console.log(chalk_1.default.gray('     ↳  ') + chalk_1.default.cyan.underline(commitUrl));
+        }
         printSuccess();
     }
     catch (error) {
