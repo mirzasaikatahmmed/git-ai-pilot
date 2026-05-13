@@ -73,7 +73,16 @@ On first run, the setup wizard will prompt for your Gemini and/or OpenAI API key
 
 ## 🔄 Update
 
-Check your current version:
+`git-auto` automatically checks npm on every run and shows a banner when a newer version is available:
+
+```
+  ╔══════════════════════════════════════════════════╗
+  ║     🚀  Update available  v1.2.2 → v1.2.3       ║
+  ║        Run: npm install -g git-ai-pilot          ║
+  ╚══════════════════════════════════════════════════╝
+```
+
+Check your current version manually:
 
 ```bash
 git-auto --version
@@ -90,7 +99,7 @@ npm update -g git-ai-pilot
 To install a specific version:
 
 ```bash
-npm install -g git-ai-pilot@1.1.2
+npm install -g git-ai-pilot@1.2.3
 ```
 
 > Your API keys in `~/.git-ai-pilot/config.json` are preserved across updates.
@@ -232,12 +241,13 @@ git-ai-pilot/
 ├── apps/
 │   └── cli/               # The npm package (git-ai-pilot)
 │       ├── src/
-│       │   ├── index.ts       # Git workflow orchestration
-│       │   ├── ai-service.ts  # Gemini → OpenAI fallback
-│       │   ├── gemini.ts      # Gemini integration
-│       │   ├── openai.ts      # OpenAI integration
-│       │   ├── security.ts    # Secret scanner & vulnerability audit
-│       │   └── config.ts      # Global API key management
+│       │   ├── index.ts          # Git workflow orchestration
+│       │   ├── ai-service.ts     # Gemini → OpenAI fallback
+│       │   ├── gemini.ts         # Gemini integration
+│       │   ├── openai.ts         # OpenAI integration
+│       │   ├── security.ts       # Secret scanner & vulnerability audit
+│       │   ├── config.ts         # Global API key management
+│       │   └── update-check.ts   # npm update notification
 │       ├── bin/
 │       │   └── cli.js         # CLI entry point
 │       └── package.json
@@ -271,7 +281,10 @@ cd apps/cli && npm run dev
 
 ## 📋 Changelog
 
-### v1.2.0 — Current
+### v1.2.3 — Current
+- **Auto update notifications** — on every run, the CLI silently checks npm for a newer version; if one exists a styled yellow banner is shown with the exact `npm install -g git-ai-pilot` command to upgrade (times out in 3 s, never blocks the workflow)
+
+### v1.2.0
 - **Windows fix** — `git-auto --custom-command` no longer fails with `Command failed: npm bin -g`; switched to `npm prefix -g` (the supported replacement) with correct path resolution on both Windows and Unix
 - **Suppressed dotenv noise** — no more `[dotenv] injecting env (N)` lines on startup across all commands
 
