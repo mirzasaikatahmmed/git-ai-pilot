@@ -32,6 +32,7 @@ Run `git-auto` in any project folder. The tool will:
 | 🧠 | Generate a commit message with **Gemini AI** (falls back to **OpenAI**) |
 | 💾 | Commit the changes |
 | ☁️ | Push to GitHub / GitLab |
+| 🔗 | Print the **direct commit URL** (e.g. `github.com/.../commit/abc123`) |
 
 ### All commands
 
@@ -281,7 +282,10 @@ cd apps/cli && npm run dev
 
 ## 📋 Changelog
 
-### v1.2.3 — Current
+### v1.2.5 — Current
+- **Commit URL on push** — after every successful push the CLI prints the direct commit link (e.g. `https://github.com/user/repo/commit/abc123`); works with both HTTPS and SSH remotes
+
+### v1.2.3
 - **Auto update notifications** — on every run, the CLI silently checks npm for a newer version; if one exists a styled yellow banner is shown with the exact `npm install -g git-ai-pilot` command to upgrade (times out in 3 s, never blocks the workflow)
 
 ### v1.2.0

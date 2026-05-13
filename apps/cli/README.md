@@ -14,6 +14,7 @@ Tired of writing commit messages? Let AI do it for you! `git-ai-pilot` automatic
 *   **Security Reports**: Saves a timestamped JSON report to `.security-reports/` when issues are found.
 *   **Smart Commit Messages**: Uses Gemini AI to understand *what* you changed and *why*.
 *   **AI Fallback**: Automatically switches to OpenAI if Gemini is unavailable.
+*   **Commit URL**: Prints the direct GitHub/GitLab commit link after every successful push.
 *   **Global Access**: Works in ANY project folder on your computer.
 
 ---
@@ -157,6 +158,7 @@ Press `y` or `Enter` to pull, `n` to skip. Then:
 *   🧠 Generates an AI commit message.
 *   💾 Commits the changes.
 *   ☁️ Pushes to GitHub/GitLab.
+*   🔗 Prints the **direct commit URL** so you can open it instantly.
 
 ---
 
@@ -254,7 +256,10 @@ A: Just press `n` when asked. The rest of the workflow continues normally.
 
 ## 📋 Changelog
 
-### v1.2.3 — Current
+### v1.2.5 — Current
+- **Commit URL on push** — after every successful push the CLI prints the direct commit link (e.g. `https://github.com/user/repo/commit/abc123`); works with both HTTPS and SSH remotes
+
+### v1.2.3
 - **Auto update notifications** — on every run, the CLI silently checks npm for a newer version; if one exists a styled yellow banner is shown with the exact `npm install -g git-ai-pilot` command to upgrade (times out in 3 s, never blocks the workflow)
 
 ### v1.2.0
