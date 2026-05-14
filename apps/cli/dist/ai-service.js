@@ -41,6 +41,7 @@ const gemini_1 = require("./gemini");
 const openai_1 = require("./openai");
 const chalk_1 = __importDefault(require("chalk"));
 const dotenv = __importStar(require("dotenv"));
+require("dotenv/config");
 dotenv.config({ quiet: true });
 async function generateCommitMessage(diff) {
     try {
