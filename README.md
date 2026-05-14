@@ -9,6 +9,8 @@
 [![License: ISC](https://img.shields.io/badge/License-ISC-yellow.svg)](https://opensource.org/licenses/ISC)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-brightgreen)](https://nodejs.org)
 [![Built with TypeScript](https://img.shields.io/badge/Built%20with-TypeScript-3178c6)](https://www.typescriptlang.org)
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=github-sponsors)](https://github.com/sponsors/mirzasaikatahmmed)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-☕-yellow?logo=buy-me-a-coffee)](https://buymeacoffee.com/mirzasaikatahmmed)
 
 <br/>
 
@@ -347,6 +349,17 @@ Pull requests are welcome! For major changes, please open an issue first.
 2. Create your branch: `git checkout -b feat/your-feature`
 3. Make changes and let `git-auto` commit them 😄
 4. Push and open a PR
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) before participating. All contributors are listed in [CONTRIBUTORS.md](CONTRIBUTORS.md).
+
+---
+
+## 💛 Support
+
+If Git AI Pilot saves you time, consider supporting the project:
+
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor%20on%20GitHub-%E2%9D%A4-ea4aaa?logo=github-sponsors&style=for-the-badge)](https://github.com/sponsors/mirzasaikatahmmed)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-☕-yellow?logo=buy-me-a-coffee&style=for-the-badge)](https://buymeacoffee.com/mirzasaikatahmmed)
 
 ---
 
