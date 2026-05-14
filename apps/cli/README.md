@@ -6,7 +6,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/git-ai-pilot?color=green)](https://www.npmjs.com/package/git-ai-pilot)
 [![License: ISC](https://img.shields.io/badge/License-ISC-yellow.svg)](https://opensource.org/licenses/ISC)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=github-sponsors)](https://github.com/sponsors/mirzasaikatahmmed)
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-☕-yellow?logo=buy-me-a-coffee)](https://buymeacoffee.com/mirzasaikatahmmed)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-☕-yellow?logo=buy-me-a-coffee)](https://buymeacoffee.com/saikat)
 
 Tired of writing commit messages? Let AI do it for you! `git-ai-pilot` automatically looks at your code changes and writes a professional, descriptive commit message using Google Gemini AI — and guards every commit with a built-in security scan before anything is staged.
 
@@ -327,7 +327,7 @@ Contributions are welcome! See [CONTRIBUTING.md](../../CONTRIBUTING.md) for guid
 If Git AI Pilot saves you time, consider supporting the project:
 
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor%20on%20GitHub-%E2%9D%A4-ea4aaa?logo=github-sponsors&style=for-the-badge)](https://github.com/sponsors/mirzasaikatahmmed)
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-☕-yellow?logo=buy-me-a-coffee&style=for-the-badge)](https://buymeacoffee.com/mirzasaikatahmmed)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-☕-yellow?logo=buy-me-a-coffee&style=for-the-badge)](https://buymeacoffee.com/saikat)
 
 ---
 

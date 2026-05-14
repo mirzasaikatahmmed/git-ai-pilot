@@ -10,7 +10,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-brightgreen)](https://nodejs.org)
 [![Built with TypeScript](https://img.shields.io/badge/Built%20with-TypeScript-3178c6)](https://www.typescriptlang.org)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=github-sponsors)](https://github.com/sponsors/mirzasaikatahmmed)
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-☕-yellow?logo=buy-me-a-coffee)](https://buymeacoffee.com/mirzasaikatahmmed)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-☕-yellow?logo=buy-me-a-coffee)](https://buymeacoffee.com/saikat)
 
 <br/>
 
@@ -359,7 +359,7 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines and [CODE_OF_
 If Git AI Pilot saves you time, consider supporting the project:
 
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor%20on%20GitHub-%E2%9D%A4-ea4aaa?logo=github-sponsors&style=for-the-badge)](https://github.com/sponsors/mirzasaikatahmmed)
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-☕-yellow?logo=buy-me-a-coffee&style=for-the-badge)](https://buymeacoffee.com/mirzasaikatahmmed)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-☕-yellow?logo=buy-me-a-coffee&style=for-the-badge)](https://buymeacoffee.com/saikat)
 
 ---
 
