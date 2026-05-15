@@ -122,7 +122,7 @@ async function ensureApiKeys() {
 }
 function askYesNo(question) {
     return new Promise((resolve) => {
-        const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+        const rl = readline.createInterface({ input: process.stdin, terminal: false });
         process.stdout.write('\n' + chalk_1.default.cyan('  ?') + '  ' + chalk_1.default.white(question) + ' ' +
             chalk_1.default.gray('(y/n)') + chalk_1.default.cyan(' › '));
         process.stdin.setRawMode(true);

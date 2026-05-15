@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ask a question / Discussion
+    url: https://github.com/mirzasaikatahmmed/git-ai-pilot/discussions
+    about: Use GitHub Discussions for general questions and help
+  - name: npm package
+    url: https://www.npmjs.com/package/git-ai-pilot
+    about: View the package on npm
