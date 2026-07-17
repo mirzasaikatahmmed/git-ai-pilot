@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import chalk from 'chalk';
 import { SimpleGit } from 'simple-git';
+import { verifySecretsWithAI } from './secret-verifier';
 
 export interface SecretFinding {
   file: string;
@@ -120,6 +121,7 @@ function isSensitiveFile(filePath: string): string | null {
 export async function scanSecretsInDiff(diff: string): Promise<SecretFinding[]> {
   const findings: SecretFinding[] = [];
   const flaggedFiles = new Set<string>();
+  const sensitiveFileContent = new Map<string, string[]>();
 
   if (!diff) return findings;
 
@@ -148,7 +150,17 @@ export async function scanSecretsInDiff(diff: string): Promise<SecretFinding[]> 
       lineNum = m ? parseInt(m[1]) - 1 : 0;
     } else if (raw.startsWith('+') && !raw.startsWith('+++')) {
       lineNum++;
-      if (!currentFile || shouldSkipFile(currentFile)) continue;
+      if (!currentFile) continue;
+
+      // Capture added lines of flagged sensitive files so the AI can judge their
+      // actual content, rather than blocking on the filename alone
+      if (flaggedFiles.has(currentFile)) {
+        const buf = sensitiveFileContent.get(currentFile) ?? [];
+        if (buf.length < 40) buf.push(raw.slice(1));
+        sensitiveFileContent.set(currentFile, buf);
+      }
+
+      if (shouldSkipFile(currentFile)) continue;
       const content = raw.slice(1);
       if (SKIP_LINE_PATTERN.test(content)) continue;
 
@@ -169,7 +181,16 @@ export async function scanSecretsInDiff(diff: string): Promise<SecretFinding[]> 
     }
   }
 
-  return findings;
+  // Sensitive-file findings only carry the filename by default; swap in the file's
+  // actual added content (still line 0, so report display is unaffected) so AI
+  // verification can tell a real secret file from an example/placeholder one.
+  for (const finding of findings) {
+    if (finding.line === 0 && sensitiveFileContent.has(finding.file)) {
+      finding.content = sensitiveFileContent.get(finding.file)!.join('\n').slice(0, 1500);
+    }
+  }
+
+  return verifySecretsWithAI(findings);
 }
 
 // ─── Language detection helpers ───────────────────────────────────────────────

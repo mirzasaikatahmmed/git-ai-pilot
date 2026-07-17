@@ -45,6 +45,7 @@ const child_process_1 = require("child_process");
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const chalk_1 = __importDefault(require("chalk"));
+const secret_verifier_1 = require("./secret-verifier");
 // Files that should never be committed — flagged on sight regardless of content
 const SENSITIVE_FILE_PATTERNS = [
     { pattern: /(?:^|\/)\.env$/, label: '.env file' },
@@ -106,6 +107,7 @@ function isSensitiveFile(filePath) {
 async function scanSecretsInDiff(diff) {
     const findings = [];
     const flaggedFiles = new Set();
+    const sensitiveFileContent = new Map();
     if (!diff)
         return findings;
     let currentFile = '';
@@ -133,7 +135,17 @@ async function scanSecretsInDiff(diff) {
         }
         else if (raw.startsWith('+') && !raw.startsWith('+++')) {
             lineNum++;
-            if (!currentFile || shouldSkipFile(currentFile))
+            if (!currentFile)
+                continue;
+            // Capture added lines of flagged sensitive files so the AI can judge their
+            // actual content, rather than blocking on the filename alone
+            if (flaggedFiles.has(currentFile)) {
+                const buf = sensitiveFileContent.get(currentFile) ?? [];
+                if (buf.length < 40)
+                    buf.push(raw.slice(1));
+                sensitiveFileContent.set(currentFile, buf);
+            }
+            if (shouldSkipFile(currentFile))
                 continue;
             const content = raw.slice(1);
             if (SKIP_LINE_PATTERN.test(content))
@@ -155,7 +167,15 @@ async function scanSecretsInDiff(diff) {
             lineNum++;
         }
     }
-    return findings;
+    // Sensitive-file findings only carry the filename by default; swap in the file's
+    // actual added content (still line 0, so report display is unaffected) so AI
+    // verification can tell a real secret file from an example/placeholder one.
+    for (const finding of findings) {
+        if (finding.line === 0 && sensitiveFileContent.has(finding.file)) {
+            finding.content = sensitiveFileContent.get(finding.file).join('\n').slice(0, 1500);
+        }
+    }
+    return (0, secret_verifier_1.verifySecretsWithAI)(findings);
 }
 // ─── Language detection helpers ───────────────────────────────────────────────
 function hasFile(dir, ...files) {
