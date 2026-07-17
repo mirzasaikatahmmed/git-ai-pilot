@@ -22,6 +22,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # main is a protected branch requiring PRs — the default GITHUB_TOKEN
+          # (acting as github-actions[bot]) can't push past that. GH_PAT is a
+          # personal access token from an account allowed to bypass the rule.
+          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
