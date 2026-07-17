@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.2.10] - 2026-07-17
+
 ### Added
 - AI-based secret verification: after the regex secret scanner flags a possible
   secret (inline value or a sensitive filename like `.env`), it's now reviewed by
