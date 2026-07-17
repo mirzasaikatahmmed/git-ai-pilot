@@ -37,13 +37,17 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Bump Version and Publish
+      - name: Bump Version
         run: |
           cd apps/cli
           npm version patch -m "chore: bump version to %s [skip ci]"
+
+      - name: Push Version Bump
+        run: git push origin HEAD:main --follow-tags
+
+      - name: Publish
+        run: |
+          cd apps/cli
           npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Push Version Bump
-        run: git push origin HEAD:main
